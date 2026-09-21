@@ -124,4 +124,89 @@
 
     </LinearLayout>
 
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- Screenshot pull-tab: top-left corner                               -->
+    <!-- Drag from top-left toward bottom-right (≥80dp) to take screenshot -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <LinearLayout
+        android:id="@+id/tab_screenshot"
+        android:layout_width="52dp"
+        android:layout_height="64dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@drawable/bg_pull_tab_screenshot"
+        android:alpha="0.82"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        android:elevation="16dp"
+        android:paddingBottom="4dp">
+
+        <!-- Screenshot icon -->
+        <ImageView
+            android:id="@+id/iv_tab_screenshot"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_screenshot"
+            android:contentDescription="截图" />
+
+        <!-- Drag hint: small arrow pointing right-down -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="↘"
+            android:textColor="#99FFFFFF"
+            android:textSize="10sp"
+            android:layout_marginTop="2dp" />
+    </LinearLayout>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- Record pull-tab: top-right corner                                   -->
+    <!-- Drag from top-right toward bottom-left (≥80dp) to start/stop rec  -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <LinearLayout
+        android:id="@+id/tab_record"
+        android:layout_width="52dp"
+        android:layout_height="64dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@drawable/bg_pull_tab_record"
+        android:alpha="0.82"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:elevation="16dp"
+        android:paddingBottom="4dp">
+
+        <!-- Record icon (shown when not recording) -->
+        <ImageView
+            android:id="@+id/iv_tab_record"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_record"
+            android:contentDescription="录制"
+            android:visibility="visible" />
+
+        <!-- Recording timer (shown when recording, replaces icon) -->
+        <TextView
+            android:id="@+id/tv_tab_record_timer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#FF4444"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:text="00:00"
+            android:visibility="gone" />
+
+        <!-- Drag hint: small arrow pointing left-down -->
+        <TextView
+            android:id="@+id/tv_tab_record_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="↙"
+            android:textColor="#99FFFFFF"
+            android:textSize="10sp"
+            android:layout_marginTop="2dp" />
+    </LinearLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

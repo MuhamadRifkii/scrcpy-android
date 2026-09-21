@@ -31,6 +31,16 @@ public class AudioPlayer {
     private int codecId;
     private final AtomicBoolean isRunning = new AtomicBoolean(false);
 
+    public interface AudioPcmListener {
+        void onPcmData(byte[] pcm, int offset, int length);
+    }
+
+    private volatile AudioPcmListener pcmListener;
+
+    public void setPcmListener(AudioPcmListener listener) {
+        this.pcmListener = listener;
+    }
+
     public AudioPlayer(int codecId) {
         this.codecId = codecId;
     }
@@ -122,6 +132,10 @@ public class AudioPlayer {
         if (codecId == CODEC_RAW) {
             try {
                 audioTrack.write(data, 0, data.length);
+                AudioPcmListener listener = pcmListener;
+                if (listener != null) {
+                    listener.onPcmData(data, 0, data.length);
+                }
             } catch (Exception ignored) {}
             return;
         }
@@ -167,6 +181,10 @@ public class AudioPlayer {
                     byte[] pcm = new byte[bufferInfo.size];
                     outputBuffer.get(pcm);
                     audioTrack.write(pcm, 0, pcm.length);
+                    AudioPcmListener listener = pcmListener;
+                    if (listener != null) {
+                        listener.onPcmData(pcm, 0, pcm.length);
+                    }
                 }
                 audioDecoder.releaseOutputBuffer(outputIndex, false);
                 outputIndex = audioDecoder.dequeueOutputBuffer(bufferInfo, 0);

@@ -31,6 +31,44 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
+        <!-- Screenshot button -->
+        <ImageView
+            android:id="@+id/iv_screenshot"
+            android:layout_width="28dp"
+            android:layout_height="match_parent"
+            android:padding="6dp"
+            android:scaleType="fitCenter"
+            android:background="@drawable/bg_btn_ripple"
+            android:src="@drawable/ic_screenshot"
+            android:contentDescription="截图" />
+
+        <!-- Record button (shown when not recording) -->
+        <ImageView
+            android:id="@+id/iv_record"
+            android:layout_width="28dp"
+            android:layout_height="match_parent"
+            android:padding="6dp"
+            android:scaleType="fitCenter"
+            android:background="@drawable/bg_btn_ripple"
+            android:src="@drawable/ic_record"
+            android:contentDescription="录制"
+            android:visibility="visible" />
+
+        <!-- Record timer (shown while recording, replaces record button) -->
+        <TextView
+            android:id="@+id/tv_record_timer"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:textColor="#FF4444"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:text="00:00"
+            android:visibility="gone"
+            android:background="@drawable/bg_btn_ripple" />
+
         <!-- Quick rotate remote device -->
         <ImageView
             android:id="@+id/iv_rotate"

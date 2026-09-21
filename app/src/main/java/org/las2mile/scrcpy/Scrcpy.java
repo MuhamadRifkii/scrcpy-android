@@ -41,6 +41,22 @@ public class Scrcpy extends Service {
 
     private VideoDecoder videoDecoder;
     private AudioPlayer audioPlayer;
+    private volatile AudioPlayer.AudioPcmListener audioPcmListener;
+
+    public void setAudioPcmListener(AudioPlayer.AudioPcmListener listener) {
+        this.audioPcmListener = listener;
+        if (audioPlayer != null) {
+            audioPlayer.setPcmListener(listener);
+        }
+    }
+
+    public boolean isAudioEnabled() {
+        return audioEnabled;
+    }
+
+    public boolean isAudioActive() {
+        return audioEnabled && audioPlayer != null;
+    }
 
     private final IBinder mBinder = new MyServiceBinder();
     private final AtomicBoolean isRunning = new AtomicBoolean(false);
@@ -385,6 +401,9 @@ public class Scrcpy extends Service {
             }
 
             audioPlayer = new AudioPlayer(codecId);
+            if (audioPcmListener != null) {
+                audioPlayer.setPcmListener(audioPcmListener);
+            }
             audioPlayer.start();
 
             while (isRunning.get()) {

@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <!--
+        Video camera / record icon (from 录制视频.svg)
+        Original: camera body + play triangle
+    -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M746.656,310.528l110.688-49.184a42.656,42.656,0,0,1,60,38.976v423.36a42.656,42.656,0,0,1-60,38.976l-110.688-49.184V768a85.344,85.344,0,0,1-85.312,85.344H192A85.344,85.344,0,0,1,106.656,768V256A85.344,85.344,0,0,1,192,170.656h469.344A85.344,85.344,0,0,1,746.656,256v54.528zM320,381.184v261.632a21.344,21.344,0,0,0,33.152,17.728l196.224-130.784a21.344,21.344,0,0,0,0-35.52l-196.224-130.784a21.344,21.344,0,0,0-33.152,17.728z" />
+</vector>

@@ -22,6 +22,7 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.Surface;
+import android.view.SurfaceView;
 import android.view.WindowManager;
 import android.widget.Toast;
 
@@ -48,6 +49,11 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
     private boolean noControl = false;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    // Screenshot & recording
+    private final ScreenRecorder screenRecorder = new ScreenRecorder();
+    private Runnable recordTimerRunnable;
+    private long recordStartMs = 0;
 
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -233,28 +239,33 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         });
 
         displayWindow.setActionCallback(actionType -> {
-            if (scrcpy == null) return;
             switch (actionType) {
                 case DisplayWindow.ACTION_POWER:
-                    scrcpy.sendKeyevent(KeyEvent.KEYCODE_POWER);
+                    if (scrcpy != null) scrcpy.sendKeyevent(KeyEvent.KEYCODE_POWER);
                     break;
                 case DisplayWindow.ACTION_BACK:
-                    scrcpy.sendKeyevent(KeyEvent.KEYCODE_BACK);
+                    if (scrcpy != null) scrcpy.sendKeyevent(KeyEvent.KEYCODE_BACK);
                     break;
                 case DisplayWindow.ACTION_HOME:
-                    scrcpy.sendKeyevent(KeyEvent.KEYCODE_HOME);
+                    if (scrcpy != null) scrcpy.sendKeyevent(KeyEvent.KEYCODE_HOME);
                     break;
                 case DisplayWindow.ACTION_MENU:
-                    scrcpy.sendKeyevent(KeyEvent.KEYCODE_APP_SWITCH);
+                    if (scrcpy != null) scrcpy.sendKeyevent(KeyEvent.KEYCODE_APP_SWITCH);
                     break;
                 case DisplayWindow.ACTION_VOLUME_DOWN:
-                    scrcpy.sendKeyevent(KeyEvent.KEYCODE_VOLUME_DOWN);
+                    if (scrcpy != null) scrcpy.sendKeyevent(KeyEvent.KEYCODE_VOLUME_DOWN);
                     break;
                 case DisplayWindow.ACTION_VOLUME_UP:
-                    scrcpy.sendKeyevent(KeyEvent.KEYCODE_VOLUME_UP);
+                    if (scrcpy != null) scrcpy.sendKeyevent(KeyEvent.KEYCODE_VOLUME_UP);
                     break;
                 case DisplayWindow.ACTION_ROTATE:
-                    scrcpy.rotateDevice();
+                    if (scrcpy != null) scrcpy.rotateDevice();
+                    break;
+                case DisplayWindow.ACTION_SCREENSHOT:
+                    captureFloatScreenshot();
+                    break;
+                case DisplayWindow.ACTION_RECORD_TOGGLE:
+                    toggleFloatRecording();
                     break;
             }
         });
@@ -296,6 +307,97 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         }
     }
 
+    // ────────────────────────────────────────────────────────────────────────
+    // Screenshot & Recording
+    // ────────────────────────────────────────────────────────────────────────
+
+    private void captureFloatScreenshot() {
+        if (displayWindow == null) return;
+        SurfaceView sv = displayWindow.getSurfaceView();
+        if (sv == null) {
+            Toast.makeText(this, "无法获取画面", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ScreenCaptureUtil.captureFrame(sv, this, new ScreenCaptureUtil.CaptureCallback() {
+            @Override
+            public void onSuccess(String filePath) {
+                Toast.makeText(FloatService.this, "截图已保存到 Pictures/scrcpy", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onFailure(String reason) {
+                Toast.makeText(FloatService.this, "截图失败: " + reason, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void toggleFloatRecording() {
+        if (screenRecorder.isRecording()) {
+            screenRecorder.stop();
+            stopRecordTimer();
+        } else {
+            if (displayWindow == null) return;
+            SurfaceView sv = displayWindow.getSurfaceView();
+            if (sv == null) {
+                Toast.makeText(this, "无法获取画面", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            screenRecorder.start(sv, sv.getWidth(), sv.getHeight(), scrcpy, this,
+                    new ScreenRecorder.RecordListener() {
+                        @Override
+                        public void onStarted() {
+                            recordStartMs = System.currentTimeMillis();
+                            startRecordTimer();
+                            Toast.makeText(FloatService.this, "开始录制", Toast.LENGTH_SHORT).show();
+                        }
+
+                        @Override
+                        public void onStopped(String filePath) {
+                            stopRecordTimer();
+                            Toast.makeText(FloatService.this, "录制已保存到 Movies/scrcpy", Toast.LENGTH_SHORT).show();
+                        }
+
+                        @Override
+                        public void onError(String reason) {
+                            stopRecordTimer();
+                            Toast.makeText(FloatService.this, "录制失败: " + reason, Toast.LENGTH_SHORT).show();
+                        }
+
+                        @Override
+                        public void onTick(long elapsedSeconds) {
+                            // handled by timer runnable
+                        }
+                    });
+        }
+    }
+
+    private void startRecordTimer() {
+        if (recordTimerRunnable != null) mainHandler.removeCallbacks(recordTimerRunnable);
+        recordTimerRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!screenRecorder.isRecording() || displayWindow == null) return;
+                long elapsed = (System.currentTimeMillis() - recordStartMs) / 1000;
+                long mm = elapsed / 60;
+                long ss = elapsed % 60;
+                String text = String.format(java.util.Locale.getDefault(), "%02d:%02d", mm, ss);
+                displayWindow.updateRecordTimer(text);
+                mainHandler.postDelayed(this, 1000);
+            }
+        };
+        mainHandler.post(recordTimerRunnable);
+    }
+
+    private void stopRecordTimer() {
+        if (recordTimerRunnable != null) {
+            mainHandler.removeCallbacks(recordTimerRunnable);
+            recordTimerRunnable = null;
+        }
+        if (displayWindow != null) {
+            displayWindow.updateRecordTimer(null);
+        }
+    }
+
     @Override
     public void loadNewRotation() {
         if (scrcpy == null || displayWindow == null) return;
@@ -321,6 +423,12 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
     public void onDestroy() {
         super.onDestroy();
         Log.d(TAG, "FloatService onDestroy");
+
+        // Stop any ongoing recording
+        stopRecordTimer();
+        if (screenRecorder.isRecording()) {
+            screenRecorder.stop();
+        }
 
         try {
             unregisterReceiver(usbDetachReceiver);

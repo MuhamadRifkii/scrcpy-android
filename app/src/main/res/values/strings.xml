@@ -196,4 +196,20 @@
     <string name="msg_history_cleared">已清空连接历史记录</string>
     <string name="menu_theme_toggle">切换黑夜模式</string>
 
+    <!-- Screenshot & Recording -->
+    <string name="btn_screenshot">截图</string>
+    <string name="btn_record">录制</string>
+    <string name="msg_screenshot_saved">截图已保存到 Downloads</string>
+    <string name="msg_screenshot_failed">截图失败</string>
+    <string name="msg_record_started">开始录制</string>
+    <string name="msg_record_saved">录制已保存到 Downloads</string>
+    <string name="msg_record_failed">录制失败</string>
+    <string name="dialog_record_start_title">开始录制</string>
+    <string name="dialog_record_start_msg">开始录制屏幕内容？录制内容将保存到 Downloads 目录。</string>
+    <string name="dialog_record_stop_title">停止录制</string>
+    <string name="dialog_record_stop_msg">确定停止录制并保存视频到 Downloads 目录？</string>
+    <string name="dialog_btn_start_record">开始录制</string>
+    <string name="dialog_btn_stop_record">停止录制</string>
+    <string name="dialog_btn_continue_record">继续录制</string>
+
 </resources>

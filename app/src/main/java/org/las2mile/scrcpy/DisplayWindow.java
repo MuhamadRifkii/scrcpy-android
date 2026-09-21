@@ -24,6 +24,8 @@ public class DisplayWindow extends FrameLayout {
     public static final int ACTION_POWER = 4;
     public static final int ACTION_VOLUME_UP = 5;
     public static final int ACTION_VOLUME_DOWN = 6;
+    public static final int ACTION_SCREENSHOT = 7;
+    public static final int ACTION_RECORD_TOGGLE = 8;
 
     private OnClickListener closeListener;
     private OnMoveCallback moveCallback;
@@ -40,6 +42,7 @@ public class DisplayWindow extends FrameLayout {
     private ViewGroup actionbar;
     private View resizeHandle;
     private View hintLayout;
+    private android.widget.TextView tvRecordTimer;
 
     private int remoteW = 1080;
     private int remoteH = 1920;
@@ -70,6 +73,7 @@ public class DisplayWindow extends FrameLayout {
         actionbar = findViewById(R.id.actionbar);
         header = findViewById(R.id.header);
         hintLayout = findViewById(R.id.hint_layout);
+        tvRecordTimer = findViewById(R.id.tv_record_timer);
 
         // Header drag-to-move
         header.setOnTouchListener((view, motionEvent) -> {
@@ -117,6 +121,33 @@ public class DisplayWindow extends FrameLayout {
                             return true;
                     }
                     return false;
+                }
+            });
+        }
+
+        // Screenshot button
+        View screenshotBtn = findViewById(R.id.iv_screenshot);
+        if (screenshotBtn != null) {
+            screenshotBtn.setOnClickListener(v -> {
+                if (actionCallback != null) {
+                    actionCallback.onAction(ACTION_SCREENSHOT);
+                }
+            });
+        }
+
+        // Record button / timer
+        View recordBtn = findViewById(R.id.iv_record);
+        if (recordBtn != null) {
+            recordBtn.setOnClickListener(v -> {
+                if (actionCallback != null) {
+                    actionCallback.onAction(ACTION_RECORD_TOGGLE);
+                }
+            });
+        }
+        if (tvRecordTimer != null) {
+            tvRecordTimer.setOnClickListener(v -> {
+                if (actionCallback != null) {
+                    actionCallback.onAction(ACTION_RECORD_TOGGLE);
                 }
             });
         }
@@ -338,6 +369,22 @@ public class DisplayWindow extends FrameLayout {
     public void showHintTip() {
         if (hintLayout != null) {
             hintLayout.setVisibility(VISIBLE);
+        }
+    }
+
+    /**
+     * Update the recording timer display.
+     * @param timerText e.g. "00:42"; pass null or empty to stop recording UI mode.
+     */
+    public void updateRecordTimer(String timerText) {
+        View recordBtn = findViewById(R.id.iv_record);
+        boolean recording = (timerText != null && !timerText.isEmpty());
+        if (recordBtn != null) {
+            recordBtn.setVisibility(recording ? GONE : VISIBLE);
+        }
+        if (tvRecordTimer != null) {
+            tvRecordTimer.setVisibility(recording ? VISIBLE : GONE);
+            if (recording) tvRecordTimer.setText(timerText);
         }
     }
 

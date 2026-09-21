@@ -2,6 +2,7 @@ package org.las2mile.scrcpy;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -16,15 +17,20 @@ import android.hardware.SensorManager;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -74,6 +80,17 @@ public class ScreenMirrorActivity extends Activity
 
     private SensorManager sensorManager;
     private Sensor proximitySensor;
+
+    // Screenshot & Recording
+    private final ScreenRecorder screenRecorder = new ScreenRecorder();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private Runnable recordTimerRunnable;
+    private long recordStartMs = 0;
+    private boolean recordTabDragged = false;
+    private boolean screenshotTabDragged = false;
+
+    // Pull-tab drag threshold in pixels (set in onCreate)
+    private float pullTabThresholdPx = 200f;
 
     // ────────────────────────────────────────────────────────────────────────
     // Service connection
@@ -164,6 +181,9 @@ public class ScreenMirrorActivity extends Activity
 
         surfaceView    = findViewById(R.id.decoder_surface);
         containerLayout = findViewById(R.id.container1);
+
+        // Pull-tab threshold: 80dp
+        pullTabThresholdPx = 80 * getResources().getDisplayMetrics().density;
 
         // Nav bar visibility
         LinearLayout navBar = findViewById(R.id.nav_button_bar);
@@ -377,6 +397,87 @@ public class ScreenMirrorActivity extends Activity
             if (volUpBtn   != null) volUpBtn.setOnClickListener(v -> { if (scrcpy != null) scrcpy.sendKeyevent(KeyEvent.KEYCODE_VOLUME_UP); });
             if (rotateBtn  != null) rotateBtn.setOnClickListener(v -> { if (scrcpy != null) scrcpy.rotateDevice(); });
         }
+
+        setupPullTabs();
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private void setupPullTabs() {
+        // ── Screenshot pull-tab (top-left) ────────────────────────────────
+        View screenshotTab = findViewById(R.id.tab_screenshot);
+        if (screenshotTab != null) {
+            screenshotTab.setOnTouchListener((v, event) -> {
+                switch (event.getActionMasked()) {
+                    case MotionEvent.ACTION_DOWN:
+                        screenshotTabDragged = false;
+                        // Animate: slightly expand on touch down
+                        v.animate().scaleX(1.08f).scaleY(1.08f).alpha(1.0f).setDuration(120).start();
+                        return true;
+                    case MotionEvent.ACTION_MOVE:
+                        float dx = event.getX();
+                        float dy = event.getY();
+                        // Progress-based scale: grow as user drags toward threshold
+                        float progress = Math.min(1.0f,
+                                Math.max(dx, 0) / pullTabThresholdPx);
+                        v.animate()
+                                .scaleX(1.08f + 0.15f * progress)
+                                .scaleY(1.08f + 0.15f * progress)
+                                .alpha(0.82f + 0.18f * progress)
+                                .setDuration(0).start();
+                        // Trigger when dragged diagonally right-down
+                        if (dx > pullTabThresholdPx && dy > pullTabThresholdPx / 2) {
+                            if (!screenshotTabDragged) {
+                                screenshotTabDragged = true;
+                                captureFullscreenScreenshot();
+                            }
+                        }
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        screenshotTabDragged = false;
+                        // Animate back to resting state
+                        v.animate().scaleX(1.0f).scaleY(1.0f).alpha(0.82f).setDuration(200).start();
+                        return true;
+                }
+                return false;
+            });
+        }
+
+        // ── Record pull-tab (top-right) ───────────────────────────────────
+        View recordTab = findViewById(R.id.tab_record);
+        if (recordTab != null) {
+            recordTab.setOnTouchListener((v, event) -> {
+                switch (event.getActionMasked()) {
+                    case MotionEvent.ACTION_DOWN:
+                        recordTabDragged = false;
+                        v.animate().scaleX(1.08f).scaleY(1.08f).alpha(1.0f).setDuration(120).start();
+                        return true;
+                    case MotionEvent.ACTION_MOVE:
+                        float dx = event.getX();
+                        float dy = event.getY();
+                        // dx is negative when dragging left from the right-anchored tab
+                        float prog = Math.min(1.0f, Math.max(-dx, 0) / pullTabThresholdPx);
+                        v.animate()
+                                .scaleX(1.08f + 0.15f * prog)
+                                .scaleY(1.08f + 0.15f * prog)
+                                .alpha(0.82f + 0.18f * prog)
+                                .setDuration(0).start();
+                        if (-dx > pullTabThresholdPx && dy > pullTabThresholdPx / 2) {
+                            if (!recordTabDragged) {
+                                recordTabDragged = true;
+                                handleRecordPullTab();
+                            }
+                        }
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        recordTabDragged = false;
+                        v.animate().scaleX(1.0f).scaleY(1.0f).alpha(0.82f).setDuration(200).start();
+                        return true;
+                }
+                return false;
+            });
+        }
     }
 
     @Override
@@ -467,8 +568,13 @@ public class ScreenMirrorActivity extends Activity
         if (!(containerLayout instanceof ConstraintLayout)) return;
         if (remoteDeviceWidth <= 0 || remoteDeviceHeight <= 0) return;
 
-        // Format: "W:H" — ConstraintLayout will fit this ratio inside the available space
-        String ratio = (int) remoteDeviceWidth + ":" + (int) remoteDeviceHeight;
+        // Format: "H,W:H" or "W,W:H" — ConstraintLayout will fit this ratio inside the available space centered
+        String ratio;
+        if (remoteDeviceWidth >= remoteDeviceHeight) {
+            ratio = "H," + (int) remoteDeviceWidth + ":" + (int) remoteDeviceHeight;
+        } else {
+            ratio = "W," + (int) remoteDeviceWidth + ":" + (int) remoteDeviceHeight;
+        }
 
         ConstraintLayout cl = (ConstraintLayout) containerLayout;
         androidx.constraintlayout.widget.ConstraintSet cs = new androidx.constraintlayout.widget.ConstraintSet();
@@ -489,6 +595,12 @@ public class ScreenMirrorActivity extends Activity
     }
 
     private void stopScrcpyService() {
+        // Stop any ongoing recording
+        stopFullscreenRecordTimer();
+        if (screenRecorder.isRecording()) {
+            screenRecorder.stop();
+        }
+
         if (serviceBound && scrcpy != null) {
             scrcpy.StopService();
             try { unbindService(serviceConnection); } catch (Exception ignored) {}
@@ -496,5 +608,122 @@ public class ScreenMirrorActivity extends Activity
             scrcpy = null;
         }
         SendCommands.closeActiveSession();
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Screenshot & Recording (Fullscreen)
+    // ────────────────────────────────────────────────────────────────────────
+
+    private void captureFullscreenScreenshot() {
+        if (surfaceView == null) return;
+        ScreenCaptureUtil.captureFrame(surfaceView, this, new ScreenCaptureUtil.CaptureCallback() {
+            @Override
+            public void onSuccess(String filePath) {
+                Toast.makeText(ScreenMirrorActivity.this,
+                        "截图已保存到 Pictures/scrcpy", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onFailure(String reason) {
+                Toast.makeText(ScreenMirrorActivity.this,
+                        "截图失败: " + reason, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void handleRecordPullTab() {
+        if (isFinishing() || isDestroyed()) return;
+        if (screenRecorder.isRecording()) {
+            // Confirm stop
+            new AlertDialog.Builder(this)
+                    .setTitle("停止录制")
+                    .setMessage("确定停止录制并保存视频到 Movies/scrcpy 目录？")
+                    .setPositiveButton("停止录制", (d, w) -> stopFullscreenRecording())
+                    .setNegativeButton("继续录制", null)
+                    .show();
+        } else {
+            // Confirm start
+            new AlertDialog.Builder(this)
+                    .setTitle("开始录制")
+                    .setMessage("开始录制屏幕内容？录制内容将保存到 Movies/scrcpy 目录。")
+                    .setPositiveButton("开始录制", (d, w) -> startFullscreenRecording())
+                    .setNegativeButton("取消", null)
+                    .show();
+        }
+    }
+
+    private void startFullscreenRecording() {
+        if (surfaceView == null) return;
+        screenRecorder.start(surfaceView, surfaceView.getWidth(), surfaceView.getHeight(),
+                scrcpy, this, new ScreenRecorder.RecordListener() {
+                    @Override
+                    public void onStarted() {
+                        recordStartMs = System.currentTimeMillis();
+                        startFullscreenRecordTimer();
+                        Toast.makeText(ScreenMirrorActivity.this, "开始录制", Toast.LENGTH_SHORT).show();
+                    }
+
+                    @Override
+                    public void onStopped(String filePath) {
+                        stopFullscreenRecordTimer();
+                        Toast.makeText(ScreenMirrorActivity.this, "录制已保存到 Movies/scrcpy", Toast.LENGTH_SHORT).show();
+                    }
+
+                    @Override
+                    public void onError(String reason) {
+                        stopFullscreenRecordTimer();
+                        Toast.makeText(ScreenMirrorActivity.this, "录制失败: " + reason, Toast.LENGTH_SHORT).show();
+                    }
+
+                    @Override
+                    public void onTick(long elapsedSeconds) {
+                        // handled by timer runnable
+                    }
+                });
+    }
+
+    private void stopFullscreenRecording() {
+        screenRecorder.stop();
+        stopFullscreenRecordTimer();
+    }
+
+    private void startFullscreenRecordTimer() {
+        if (recordTimerRunnable != null) mainHandler.removeCallbacks(recordTimerRunnable);
+        recordTimerRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!screenRecorder.isRecording()) return;
+                long elapsed = (System.currentTimeMillis() - recordStartMs) / 1000;
+                long mm = elapsed / 60;
+                long ss = elapsed % 60;
+                String text = String.format(java.util.Locale.getDefault(), "%02d:%02d", mm, ss);
+                updateRecordTabUI(text);
+                mainHandler.postDelayed(this, 1000);
+            }
+        };
+        mainHandler.post(recordTimerRunnable);
+    }
+
+    private void stopFullscreenRecordTimer() {
+        if (recordTimerRunnable != null) {
+            mainHandler.removeCallbacks(recordTimerRunnable);
+            recordTimerRunnable = null;
+        }
+        updateRecordTabUI(null);
+    }
+
+    private void updateRecordTabUI(String timerText) {
+        ImageView ivRecord = findViewById(R.id.iv_tab_record);
+        TextView tvTimer   = findViewById(R.id.tv_tab_record_timer);
+        TextView tvHint    = findViewById(R.id.tv_tab_record_hint);
+        boolean recording  = (timerText != null && !timerText.isEmpty());
+
+        if (ivRecord != null) ivRecord.setVisibility(recording ? View.GONE : View.VISIBLE);
+        if (tvTimer  != null) {
+            tvTimer.setVisibility(recording ? View.VISIBLE : View.GONE);
+            if (recording) tvTimer.setText(timerText);
+        }
+        // Keep the hint arrow visible always (it shows ⇙ during idle, still present during recording)
+        if (tvHint != null) tvHint.setVisibility(View.VISIBLE);
     }
 }
