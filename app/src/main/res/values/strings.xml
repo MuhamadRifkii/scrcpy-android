@@ -199,17 +199,22 @@
     <!-- Screenshot & Recording -->
     <string name="btn_screenshot">截图</string>
     <string name="btn_record">录制</string>
-    <string name="msg_screenshot_saved">截图已保存到 Downloads</string>
-    <string name="msg_screenshot_failed">截图失败</string>
+    <string name="msg_screenshot_saved">截图已保存到 Pictures/scrcpy</string>
+    <string name="msg_screenshot_failed">截图失败: %s</string>
+    <string name="msg_cannot_get_frame">无法获取画面</string>
     <string name="msg_record_started">开始录制</string>
-    <string name="msg_record_saved">录制已保存到 Downloads</string>
-    <string name="msg_record_failed">录制失败</string>
+    <string name="msg_record_saved">录制已保存到 Movies/scrcpy</string>
+    <string name="msg_record_failed">录制失败: %s</string>
     <string name="dialog_record_start_title">开始录制</string>
-    <string name="dialog_record_start_msg">开始录制屏幕内容？录制内容将保存到 Downloads 目录。</string>
+    <string name="dialog_record_start_msg">开始录制屏幕内容？录制内容将保存到 Movies/scrcpy 目录。</string>
     <string name="dialog_record_stop_title">停止录制</string>
-    <string name="dialog_record_stop_msg">确定停止录制并保存视频到 Downloads 目录？</string>
+    <string name="dialog_record_stop_msg">确定停止录制并保存视频到 Movies/scrcpy 目录？</string>
     <string name="dialog_btn_start_record">开始录制</string>
     <string name="dialog_btn_stop_record">停止录制</string>
     <string name="dialog_btn_continue_record">继续录制</string>
+    <string name="err_record_min_version">录制功能需要 Android 8.0 及以上版本</string>
+    <string name="err_invalid_surface_size">SurfaceView 尺寸无效</string>
+    <string name="err_gl_init_failed">OpenGL 初始化失败: %s</string>
+    <string name="err_record_init_failed">录制初始化失败: %s</string>
 
 </resources>

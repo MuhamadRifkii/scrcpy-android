@@ -40,7 +40,7 @@
             android:scaleType="fitCenter"
             android:background="@drawable/bg_btn_ripple"
             android:src="@drawable/ic_screenshot"
-            android:contentDescription="截图" />
+            android:contentDescription="@string/btn_screenshot" />
 
         <!-- Record button (shown when not recording) -->
         <ImageView
@@ -51,7 +51,7 @@
             android:scaleType="fitCenter"
             android:background="@drawable/bg_btn_ripple"
             android:src="@drawable/ic_record"
-            android:contentDescription="录制"
+            android:contentDescription="@string/btn_record"
             android:visibility="visible" />
 
         <!-- Record timer (shown while recording, replaces record button) -->

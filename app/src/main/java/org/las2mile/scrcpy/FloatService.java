@@ -315,18 +315,18 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         if (displayWindow == null) return;
         SurfaceView sv = displayWindow.getSurfaceView();
         if (sv == null) {
-            Toast.makeText(this, "无法获取画面", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.msg_cannot_get_frame, Toast.LENGTH_SHORT).show();
             return;
         }
         ScreenCaptureUtil.captureFrame(sv, this, new ScreenCaptureUtil.CaptureCallback() {
             @Override
             public void onSuccess(String filePath) {
-                Toast.makeText(FloatService.this, "截图已保存到 Pictures/scrcpy", Toast.LENGTH_SHORT).show();
+                Toast.makeText(FloatService.this, R.string.msg_screenshot_saved, Toast.LENGTH_SHORT).show();
             }
 
             @Override
             public void onFailure(String reason) {
-                Toast.makeText(FloatService.this, "截图失败: " + reason, Toast.LENGTH_SHORT).show();
+                Toast.makeText(FloatService.this, getString(R.string.msg_screenshot_failed, reason), Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -339,7 +339,7 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
             if (displayWindow == null) return;
             SurfaceView sv = displayWindow.getSurfaceView();
             if (sv == null) {
-                Toast.makeText(this, "无法获取画面", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.msg_cannot_get_frame, Toast.LENGTH_SHORT).show();
                 return;
             }
             screenRecorder.start(sv, sv.getWidth(), sv.getHeight(), scrcpy, this,
@@ -348,19 +348,19 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
                         public void onStarted() {
                             recordStartMs = System.currentTimeMillis();
                             startRecordTimer();
-                            Toast.makeText(FloatService.this, "开始录制", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(FloatService.this, R.string.msg_record_started, Toast.LENGTH_SHORT).show();
                         }
 
                         @Override
                         public void onStopped(String filePath) {
                             stopRecordTimer();
-                            Toast.makeText(FloatService.this, "录制已保存到 Movies/scrcpy", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(FloatService.this, R.string.msg_record_saved, Toast.LENGTH_SHORT).show();
                         }
 
                         @Override
                         public void onError(String reason) {
                             stopRecordTimer();
-                            Toast.makeText(FloatService.this, "录制失败: " + reason, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(FloatService.this, getString(R.string.msg_record_failed, reason), Toast.LENGTH_SHORT).show();
                         }
 
                         @Override

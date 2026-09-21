@@ -195,4 +195,25 @@
     <string name="msg_history_cleared">Connection history cleared</string>
     <string name="menu_theme_toggle">Toggle Dark Mode</string>
 
+    <!-- Screenshot & Recording -->
+    <string name="btn_screenshot">Screenshot</string>
+    <string name="btn_record">Record</string>
+    <string name="msg_screenshot_saved">Screenshot saved to Pictures/scrcpy</string>
+    <string name="msg_screenshot_failed">Screenshot failed: %s</string>
+    <string name="msg_cannot_get_frame">Unable to capture screen frame</string>
+    <string name="msg_record_started">Recording started</string>
+    <string name="msg_record_saved">Recording saved to Movies/scrcpy</string>
+    <string name="msg_record_failed">Recording failed: %s</string>
+    <string name="dialog_record_start_title">Start Recording</string>
+    <string name="dialog_record_start_msg">Start recording screen content? Video will be saved to Movies/scrcpy.</string>
+    <string name="dialog_record_stop_title">Stop Recording</string>
+    <string name="dialog_record_stop_msg">Stop recording and save video to Movies/scrcpy?</string>
+    <string name="dialog_btn_start_record">Start Recording</string>
+    <string name="dialog_btn_stop_record">Stop Recording</string>
+    <string name="dialog_btn_continue_record">Continue Recording</string>
+    <string name="err_record_min_version">Screen recording requires Android 8.0 or above</string>
+    <string name="err_invalid_surface_size">Invalid SurfaceView size</string>
+    <string name="err_gl_init_failed">OpenGL initialization failed: %s</string>
+    <string name="err_record_init_failed">Recording initialization failed: %s</string>
+
 </resources>

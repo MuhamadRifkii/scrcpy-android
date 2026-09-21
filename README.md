@@ -1,4 +1,4 @@
-﻿# scrcpy-android (v4.1)
+# scrcpy-android (v4.1)
 
 <p align="center">
   <img src="docs/images/readme_main.jpg" width="270" alt="scrcpy-android 主界面" style="border-radius: 16px; margin: 6px;" />
@@ -36,14 +36,6 @@
 
 ---
 
-### 🔮 更新预告
-
-下一个版本将新增以下功能：
-- 📸 **屏幕截图**：投屏过程中支持一键捕获受控端画面并保存至本地。
-- 🎥 **屏幕录制**：支持投屏画面与音频的同步录制与导出。
-  
----
-
 ### 📥 下载安装
 
 无需自行配置环境编译，直接前往本项目 GitHub Releases 页面下载预编译好的 APK 安装包即可：
@@ -77,6 +69,18 @@
 - **物理音量键独立**：全屏或悬浮窗模式下，控制端的物理音量键**仅调节本机音量**，受控设备音量通过屏幕上的专用按钮操控，两端互不干扰。
 - **Android TV & 遥控手柄支持**：支持方向键（上/下/左/右）、确认键、媒体键（播放/暂停/上一首/下一首）透传，适配 Android TV / 电视盒子使用场景。
 - **双向剪贴板同步**：支持跨设备文本无缝复制粘贴。
+
+#### 📸 屏幕截图与 🎥 高清录屏（含音频）
+- **一键快捷截图**：
+  - **全屏模式**：左上角创新加入**隐形抽拉拉环（↘ 顺手滑动）**，带触控动效反馈，抓拍不打断游戏或投屏操作，无感抓取；
+  - **悬浮窗模式**：顶栏原生独立截图按钮，触手可及；
+  - **高保真保存**：直接提取当前渲染帧无损保存至系统相册 `Pictures/scrcpy` 目录。
+- **音画同步高清录屏**：
+  - **全屏模式**：右上角配备**录屏抽拉拉环（↙ 滑动呼出）**，带确认防误触弹窗与微型悬浮秒表；
+  - **悬浮窗模式**：顶栏录制按钮一键启停，录制中显示实时动态红点秒表，轻点即刻保存；
+  - **GPU Surface 硬件级编码**：采用 `MediaCodec.createInputSurface()` + OpenGL ES 2.0 硬件加速编码，画质清晰细腻、流畅稳定、极低系统资源占用；
+  - **横竖屏自适应居中**：受控设备横竖屏切换时，画面在视频中自适应保持真实比例并黑边居中展示（Letterbox / Pillarbox），绝不拉伸变形；
+  - **投屏音频混流**：内置 AAC 硬件编码器，投屏声音（游戏原声、音乐等）与画面高精度时间戳对齐，混流输出至标准 MP4 文件，存放在系统 `Movies/scrcpy` 目录。
 
 #### 🌙 深色模式 & 界面体验
 - **一键夜间模式**：应用右上角切换按钮即可在浅色 / 深色主题间切换，护眼且省电，偏好自动记忆。
@@ -169,14 +173,6 @@ Built on top of the official [Genymobile/scrcpy v4.1](https://github.com/Genymob
 
 ---
 
-### 🔮 Upcoming Features
-
-The upcoming version will introduce:
-- 📸 **Screen Capture**: One-tap capture of remote screen display saved directly to local storage.
-- 🎥 **Screen Recording**: Real-time synchronized screen and audio recording and exporting.
-  
----
-
 ### 📥 Download & Installation
 
 Prebuilt APK packages are ready to install directly from the GitHub Releases page of this repository without compiling from source:
@@ -210,6 +206,18 @@ Prebuilt APK packages are ready to install directly from the GitHub Releases pag
 - **Independent Volume Keys**: Physical volume buttons on the controlling device **only adjust local volume** — remote volume is controlled exclusively via the on-screen buttons, keeping both sides independent.
 - **Android TV & Gamepad Support**: D-pad (`UP/DOWN/LEFT/RIGHT`), `ENTER`, and media keys (`PLAY_PAUSE`, `NEXT`, `PREVIOUS`) are forwarded to the remote device, ideal for TV box control.
 - **Bidirectional Clipboard**: Seamless text copy & paste between devices.
+
+#### 📸 Screen Capture & 🎥 Screen Recording (with Audio)
+- **One-Tap Screen Capture**:
+  - **Fullscreen Mode**: Innovative pull-tab in top-left corner (drag ↘) with fluid touch feedback. Capture screenshots instantly without interrupting gaming or operations.
+  - **Floating Window Mode**: Dedicated screenshot icon in the title bar for instant capture.
+  - **Lossless Storage**: Frames saved directly to public `Pictures/scrcpy` in system gallery.
+- **Synchronized HD Screen Recording with Audio**:
+  - **Fullscreen Mode**: Dedicated pull-tab in top-right corner (drag ↙) with confirmation dialog to prevent accidental triggers and a floating recording timer.
+  - **Floating Window Mode**: Quick record button in the header with a live dynamic timer, tap to stop and save.
+  - **GPU Surface Hardware Encoding**: Powered by `MediaCodec.createInputSurface()` + OpenGL ES 2.0 hardware-accelerated pipeline for crisp video quality, smooth framerates, and minimal battery consumption;
+  - **Adaptive Centered Aspect Ratio**: Automatically centers remote screen display with black letterboxing / pillarboxing when rotating between portrait and landscape — zero distortion or stretching.
+  - **Audio Muxing**: Embedded AAC hardware encoder captures real-time audio (gameplay sound, media audio) and muxes synchronized audio tracks into standard MP4 files saved to `Movies/scrcpy`.
 
 #### 🌙 Dark Mode & UI
 - **One-Tap Dark Mode**: Toggle between light and dark themes from the top-right icon. Preference is persisted across sessions.
@@ -299,6 +307,9 @@ scrcpy-android/
 │   │   ├── ScreenMirrorActivity.java # Full-screen rendering, nav bar buttons & orientation sync
 │   │   ├── DisplayWindow.java        # Resizable floating window & touch event translation
 │   │   ├── FloatService.java         # Foreground overlay service with SVG button controls
+│   │   ├── ScreenCaptureUtil.java    # PixelCopy screenshot capture to Pictures/scrcpy
+│   │   ├── ScreenRecorder.java       # Hardware Surface video & AAC audio recorder (Movies/scrcpy)
+│   │   ├── EglSurfaceRenderer.java   # OpenGL ES 2.0 EGL renderer with adaptive aspect centering
 │   │   ├── Scrcpy.java               # Protocol stream demuxer & client coordinator
 │   │   ├── SendCommands.java         # ADB protocol engine & server deployment
 │   │   ├── adb/                      # TLS keypair negotiation & wireless pairing

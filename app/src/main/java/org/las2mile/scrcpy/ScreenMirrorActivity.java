@@ -620,13 +620,13 @@ public class ScreenMirrorActivity extends Activity
             @Override
             public void onSuccess(String filePath) {
                 Toast.makeText(ScreenMirrorActivity.this,
-                        "截图已保存到 Pictures/scrcpy", Toast.LENGTH_SHORT).show();
+                        R.string.msg_screenshot_saved, Toast.LENGTH_SHORT).show();
             }
 
             @Override
             public void onFailure(String reason) {
                 Toast.makeText(ScreenMirrorActivity.this,
-                        "截图失败: " + reason, Toast.LENGTH_SHORT).show();
+                        getString(R.string.msg_screenshot_failed, reason), Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -636,18 +636,18 @@ public class ScreenMirrorActivity extends Activity
         if (screenRecorder.isRecording()) {
             // Confirm stop
             new AlertDialog.Builder(this)
-                    .setTitle("停止录制")
-                    .setMessage("确定停止录制并保存视频到 Movies/scrcpy 目录？")
-                    .setPositiveButton("停止录制", (d, w) -> stopFullscreenRecording())
-                    .setNegativeButton("继续录制", null)
+                    .setTitle(R.string.dialog_record_stop_title)
+                    .setMessage(R.string.dialog_record_stop_msg)
+                    .setPositiveButton(R.string.dialog_btn_stop_record, (d, w) -> stopFullscreenRecording())
+                    .setNegativeButton(R.string.dialog_btn_continue_record, null)
                     .show();
         } else {
             // Confirm start
             new AlertDialog.Builder(this)
-                    .setTitle("开始录制")
-                    .setMessage("开始录制屏幕内容？录制内容将保存到 Movies/scrcpy 目录。")
-                    .setPositiveButton("开始录制", (d, w) -> startFullscreenRecording())
-                    .setNegativeButton("取消", null)
+                    .setTitle(R.string.dialog_record_start_title)
+                    .setMessage(R.string.dialog_record_start_msg)
+                    .setPositiveButton(R.string.dialog_btn_start_record, (d, w) -> startFullscreenRecording())
+                    .setNegativeButton(android.R.string.cancel, null)
                     .show();
         }
     }
@@ -660,19 +660,20 @@ public class ScreenMirrorActivity extends Activity
                     public void onStarted() {
                         recordStartMs = System.currentTimeMillis();
                         startFullscreenRecordTimer();
-                        Toast.makeText(ScreenMirrorActivity.this, "开始录制", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(ScreenMirrorActivity.this, R.string.msg_record_started, Toast.LENGTH_SHORT).show();
                     }
 
                     @Override
                     public void onStopped(String filePath) {
                         stopFullscreenRecordTimer();
-                        Toast.makeText(ScreenMirrorActivity.this, "录制已保存到 Movies/scrcpy", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(ScreenMirrorActivity.this, R.string.msg_record_saved, Toast.LENGTH_SHORT).show();
                     }
 
                     @Override
                     public void onError(String reason) {
                         stopFullscreenRecordTimer();
-                        Toast.makeText(ScreenMirrorActivity.this, "录制失败: " + reason, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(ScreenMirrorActivity.this,
+                                getString(R.string.msg_record_failed, reason), Toast.LENGTH_SHORT).show();
                     }
 
                     @Override

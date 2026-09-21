@@ -117,7 +117,10 @@ public class ScreenRecorder implements AudioPlayer.AudioPcmListener {
                       Scrcpy scrcpy, Context context, RecordListener listener) {
         if (mIsRecording.get()) return;
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            if (listener != null) listener.onError("录制功能需要 Android 8.0 及以上版本");
+            if (listener != null) {
+                listener.onError(context != null ? context.getString(R.string.err_record_min_version)
+                        : "Android 8.0+ required");
+            }
             return;
         }
 
@@ -129,7 +132,10 @@ public class ScreenRecorder implements AudioPlayer.AudioPcmListener {
         int svW = (width > 0) ? width : surfaceView.getWidth();
         int svH = (height > 0) ? height : surfaceView.getHeight();
         if (svW <= 0 || svH <= 0) {
-            if (listener != null) listener.onError("SurfaceView 尺寸无效");
+            if (listener != null) {
+                listener.onError(context != null ? context.getString(R.string.err_invalid_surface_size)
+                        : "Invalid SurfaceView size");
+            }
             return;
         }
 
@@ -251,8 +257,11 @@ public class ScreenRecorder implements AudioPlayer.AudioPcmListener {
                 } catch (Exception e) {
                     Log.e(TAG, "Failed to initialize EGL renderer", e);
                     cleanup();
+                    final String err = (mContext != null)
+                            ? mContext.getString(R.string.err_gl_init_failed, e.getMessage())
+                            : "OpenGL init failed: " + e.getMessage();
                     mMainHandler.post(() -> {
-                        if (mListener != null) mListener.onError("OpenGL 初始化失败: " + e.getMessage());
+                        if (mListener != null) mListener.onError(err);
                     });
                 }
             });
@@ -265,8 +274,11 @@ public class ScreenRecorder implements AudioPlayer.AudioPcmListener {
             Log.e(TAG, "Recorder init failed", e);
             cleanup();
             final String msg = e.getMessage();
+            final String err = (mContext != null)
+                    ? mContext.getString(R.string.err_record_init_failed, msg)
+                    : "Record init failed: " + msg;
             mMainHandler.post(() -> {
-                if (mListener != null) mListener.onError("录制初始化失败: " + msg);
+                if (mListener != null) mListener.onError(err);
             });
         }
     }
@@ -494,7 +506,7 @@ public class ScreenRecorder implements AudioPlayer.AudioPcmListener {
                     values.put(MediaStore.Video.Media.IS_PENDING, 0);
                     if (mMediaUri != null) {
                         mContext.getContentResolver().update(mMediaUri, values, null, null);
-                        savedPath = Environment.DIRECTORY_MOVIES + "/scrcpy (相册/Movies)";
+                        savedPath = Environment.DIRECTORY_MOVIES + "/scrcpy";
                     }
                 } else if (mOutputFile != null) {
                     savedPath = mOutputFile.getAbsolutePath();

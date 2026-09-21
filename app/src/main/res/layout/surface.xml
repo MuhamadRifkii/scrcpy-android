@@ -148,7 +148,7 @@
             android:layout_height="22dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_screenshot"
-            android:contentDescription="截图" />
+            android:contentDescription="@string/btn_screenshot" />
 
         <!-- Drag hint: small arrow pointing right-down -->
         <TextView
@@ -184,7 +184,7 @@
             android:layout_height="22dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_record"
-            android:contentDescription="录制"
+            android:contentDescription="@string/btn_record"
             android:visibility="visible" />
 
         <!-- Recording timer (shown when recording, replaces icon) -->
