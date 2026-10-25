@@ -425,6 +425,15 @@
                         android:focusable="true"
                         android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
 
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/switch_audio_only"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:text="@string/switch_audio_only"
+                        android:checked="false"
+                        android:focusable="true"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
+
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/til_audio_codec"
                         android:layout_width="match_parent"

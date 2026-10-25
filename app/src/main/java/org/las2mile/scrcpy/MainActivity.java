@@ -56,6 +56,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREF_NO_CONTROL       = "No Control";
     private static final String PREF_NAV              = "Nav Switch";
     private static final String PREF_AUDIO            = "switch_audio";
+    private static final String PREF_AUDIO_ONLY       = "switch_audio_only";
     private static final String PREF_STAY_AWAKE       = "switch_stay_awake";
     private static final String PREF_SCREEN_OFF       = "switch_screen_off";
     private static final String PREF_SYNC_ROTATION    = "switch_sync_rotation";
@@ -87,6 +88,7 @@ public class MainActivity extends AppCompatActivity {
     private AutoCompleteTextView acFps;
     private AutoCompleteTextView acAudioCodec;
     private MaterialSwitch switchAudio;
+    private MaterialSwitch switchAudioOnly;
     private MaterialSwitch switchStayAwake;
     private MaterialSwitch switchScreenOff;
     private MaterialSwitch switchSyncRotation;
@@ -191,6 +193,7 @@ public class MainActivity extends AppCompatActivity {
         acFps                = findViewById(R.id.spinner_max_fps);
         acAudioCodec         = findViewById(R.id.spinner_audio_codec);
         switchAudio          = findViewById(R.id.switch_audio);
+        switchAudioOnly      = findViewById(R.id.switch_audio_only);
         switchStayAwake      = findViewById(R.id.switch_stay_awake);
         switchScreenOff      = findViewById(R.id.switch_screen_off);
         switchSyncRotation   = findViewById(R.id.switch_sync_rotation);
@@ -225,6 +228,9 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences p = prefs();
         etServerHost.setText(p.getString(PREF_SERVER_ADDRESS, ""));
         switchAudio.setChecked(p.getBoolean(PREF_AUDIO, true)); // Default TRUE as requested
+        if (switchAudioOnly != null) {
+            switchAudioOnly.setChecked(p.getBoolean(PREF_AUDIO_ONLY, false));
+        }
         switchStayAwake.setChecked(p.getBoolean(PREF_STAY_AWAKE, true));
         switchScreenOff.setChecked(p.getBoolean(PREF_SCREEN_OFF, false));
         switchSyncRotation.setChecked(p.getBoolean(PREF_SYNC_ROTATION, true)); // Default TRUE as requested
@@ -289,7 +295,19 @@ public class MainActivity extends AppCompatActivity {
             if (tilAudioCodec != null) {
                 tilAudioCodec.setVisibility(checked ? View.VISIBLE : View.GONE);
             }
+            if (!checked && switchAudioOnly != null && switchAudioOnly.isChecked()) {
+                switchAudioOnly.setChecked(false);
+            }
         });
+
+        if (switchAudioOnly != null) {
+            switchAudioOnly.setOnCheckedChangeListener((btn, checked) -> {
+                prefs().edit().putBoolean(PREF_AUDIO_ONLY, checked).apply();
+                if (checked && !switchAudio.isChecked()) {
+                    switchAudio.setChecked(true);
+                }
+            });
+        }
 
         // No-control switch hides nav bar option
         switch0.setOnCheckedChangeListener((btn, checked) -> {
@@ -458,7 +476,9 @@ public class MainActivity extends AppCompatActivity {
         final int      fBitrate     = getSelectedBitrate();
         final int      fMaxFps      = getSelectedFps();
         final String   fVideoCodec  = getSelectedVideoCodec();
-        final boolean  fAudio       = switchAudio.isChecked();
+        final boolean  fAudioOnly   = switchAudioOnly != null && switchAudioOnly.isChecked();
+        final boolean  fAudio       = fAudioOnly || switchAudio.isChecked();
+        final boolean  fVideo       = !fAudioOnly;
         final String   fAudioCodec  = getSelectedAudioCodec();
         final boolean  fControl     = !switch0.isChecked();
         final boolean  fStayAwake   = switchStayAwake.isChecked();
@@ -468,7 +488,7 @@ public class MainActivity extends AppCompatActivity {
 
         new Thread(() -> {
             int res = sendCommands.SendAdbCommands(this, fileBase64, fAddr, 7007,
-                    fBitrate, fMaxSize, fMaxFps, fVideoCodec, fAudio, fAudioCodec, fControl, fStayAwake);
+                    fBitrate, fMaxSize, fMaxFps, fVideoCodec, fAudio, fAudioCodec, fControl, fStayAwake, fVideo);
             runOnUiThread(() -> {
                 dialog.dismiss();
                 if (btnStart != null) {
@@ -550,7 +570,9 @@ public class MainActivity extends AppCompatActivity {
         final int     fBitrate    = getSelectedBitrate();
         final int     fMaxFps     = getSelectedFps();
         final String  fVideoCodec = getSelectedVideoCodec();
-        final boolean fAudio      = switchAudio.isChecked();
+        final boolean fAudioOnly  = switchAudioOnly != null && switchAudioOnly.isChecked();
+        final boolean fAudio      = fAudioOnly || switchAudio.isChecked();
+        final boolean fVideo      = !fAudioOnly;
         final String  fAudioCodec = getSelectedAudioCodec();
         final boolean fControl    = !switch0.isChecked();
         final boolean fStayAwake  = switchStayAwake.isChecked();
@@ -559,7 +581,7 @@ public class MainActivity extends AppCompatActivity {
 
         new Thread(() -> {
             int res = sendCommands.SendAdbCommands(this, fileBase64, fAddr, 7007,
-                    fBitrate, fMaxSize, fMaxFps, fVideoCodec, fAudio, fAudioCodec, fControl, fStayAwake);
+                    fBitrate, fMaxSize, fMaxFps, fVideoCodec, fAudio, fAudioCodec, fControl, fStayAwake, fVideo);
             runOnUiThread(() -> {
                 if (res == 0) {
                     if (isUsbMode) {
@@ -578,6 +600,8 @@ public class MainActivity extends AppCompatActivity {
                     serviceIntent.putExtra("width", fResolution[0]);
                     serviceIntent.putExtra("height", fResolution[1]);
                     serviceIntent.putExtra("audio", fAudio);
+                    serviceIntent.putExtra("audio_only", fAudioOnly);
+                    serviceIntent.putExtra("video", fVideo);
                     serviceIntent.putExtra("no_control", !fControl);
                     serviceIntent.putExtra("screen_off", switchScreenOff.isChecked());
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

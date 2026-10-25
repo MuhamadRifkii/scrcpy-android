@@ -21,6 +21,8 @@
     <string name="section_audio">音频</string>
     <string name="label_audio_codec">音频编码</string>
     <string name="switch_audio">音频转发（将被控设备声音转发到此设备）</string>
+    <string name="switch_audio_only">仅音频模式（无线音箱/关闭画面）</string>
+    <string name="title_remote_speaker">无线音箱</string>
 
     <!-- Mode switcher -->
     <string name="mode_wifi">Wi-Fi 无线连接</string>

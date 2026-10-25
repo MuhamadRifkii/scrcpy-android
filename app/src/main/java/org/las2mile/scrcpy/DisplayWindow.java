@@ -400,6 +400,42 @@ public class DisplayWindow extends FrameLayout {
         return surfaceView != null && surfaceView.getHeight() > 0 ? surfaceView.getHeight() : container.getHeight();
     }
 
+    public void setAudioOnlyMode(boolean audioOnly) {
+        if (container != null) {
+            container.setVisibility(audioOnly ? GONE : VISIBLE);
+        }
+        android.widget.TextView tvTitle = findViewById(R.id.tv_title);
+        if (tvTitle != null) {
+            tvTitle.setText(audioOnly ? R.string.title_remote_speaker : R.string.app_name);
+        }
+        View rotate = findViewById(R.id.iv_rotate);
+        if (rotate != null) rotate.setVisibility(audioOnly ? GONE : VISIBLE);
+        View screenshot = findViewById(R.id.iv_screenshot);
+        if (screenshot != null) screenshot.setVisibility(audioOnly ? GONE : VISIBLE);
+        View record = findViewById(R.id.iv_record);
+        if (record != null) record.setVisibility(audioOnly ? GONE : VISIBLE);
+        View mini = findViewById(R.id.iv_mini);
+        if (mini != null) mini.setVisibility(audioOnly ? GONE : VISIBLE);
+        View resize = findViewById(R.id.iv_resize);
+        if (resize != null) resize.setVisibility(audioOnly ? GONE : VISIBLE);
+        View actionBack = findViewById(R.id.action_back);
+        if (actionBack != null) actionBack.setVisibility(audioOnly ? GONE : VISIBLE);
+        View actionHome = findViewById(R.id.action_home);
+        if (actionHome != null) actionHome.setVisibility(audioOnly ? GONE : VISIBLE);
+        View actionMenu = findViewById(R.id.action_menu);
+        if (actionMenu != null) actionMenu.setVisibility(audioOnly ? GONE : VISIBLE);
+
+        if (audioOnly) {
+            int speakerWidth = (int) (220 * getContext().getResources().getDisplayMetrics().density);
+            ViewGroup.LayoutParams lp = getLayoutParams();
+            if (lp != null) {
+                lp.width = speakerWidth;
+                lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                setLayoutParams(lp);
+            }
+        }
+    }
+
     public interface OnMoveCallback {
         void onMove(float x, float y);
     }

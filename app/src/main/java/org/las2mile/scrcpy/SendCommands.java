@@ -112,6 +112,11 @@ public class SendCommands {
 
     public int SendAdbCommands(Context context, final byte[] fileBytes, final String ip, int port, int bitrate, int size,
                                int maxFps, String videoCodec, boolean audio, String audioCodec, boolean control, boolean stayAwake) {
+        return SendAdbCommands(context, fileBytes, ip, port, bitrate, size, maxFps, videoCodec, audio, audioCodec, control, stayAwake, true);
+    }
+
+    public int SendAdbCommands(Context context, final byte[] fileBytes, final String ip, int port, int bitrate, int size,
+                               int maxFps, String videoCodec, boolean audio, String audioCodec, boolean control, boolean stayAwake, boolean video) {
         this.context = context;
         status = 1;
         lastError = null;
@@ -120,14 +125,17 @@ public class SendCommands {
         command.append("CLASSPATH=/data/local/tmp/scrcpy-server.jar app_process / com.genymobile.scrcpy.Server 5.0.1");
         command.append(" port=").append(port);
         command.append(" tunnel_forward=true");
-        command.append(" video_bit_rate=").append(bitrate);
-        if (size > 0) {
-            command.append(" max_size=").append(size);
+        command.append(" video=").append(video);
+        if (video) {
+            command.append(" video_bit_rate=").append(bitrate);
+            if (size > 0) {
+                command.append(" max_size=").append(size);
+            }
+            if (maxFps > 0) {
+                command.append(" max_fps=").append(maxFps);
+            }
+            command.append(" video_codec=").append(videoCodec != null ? videoCodec : "h264");
         }
-        if (maxFps > 0) {
-            command.append(" max_fps=").append(maxFps);
-        }
-        command.append(" video_codec=").append(videoCodec != null ? videoCodec : "h264");
         command.append(" audio=").append(audio);
         if (audio) {
             command.append(" audio_codec=").append(audioCodec != null ? audioCodec : "opus");

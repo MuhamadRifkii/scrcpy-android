@@ -6,6 +6,7 @@ import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
+import android.media.PlaybackParams;
 import android.os.Build;
 import android.util.Log;
 
@@ -31,14 +32,11 @@ public class AudioPlayer {
     private int codecId;
     private final AtomicBoolean isRunning = new AtomicBoolean(false);
 
-    private int minBufferMs = 20;
-    private int maxBufferedMs = 65;
-    private int flushThresholdMs = 125;
-
     private long totalWrittenFrames = 0;
     private long lastHeadPosition = 0;
     private long totalPlayedFrames = 0;
-    private long totalDroppedFrames = 0;
+    private float currentSpeed = 1.0f;
+    private long playbackStartTimeMs = 0;
 
     public interface AudioPcmListener {
         void onPcmData(byte[] pcm, int offset, int length);
@@ -59,10 +57,8 @@ public class AudioPlayer {
         if (minBufferSize <= 0) {
             minBufferSize = 4096;
         }
-        int bufferSize = Math.max(minBufferSize, 4096);
-        minBufferMs = (minBufferSize * 1000) / (SAMPLE_RATE * 4);
-        maxBufferedMs = Math.max(65, minBufferMs + 25);
-        flushThresholdMs = maxBufferedMs + 60;
+        // Allocate comfortable buffer capacity (~85ms to 120ms) so OS/thread jitter never causes underrun crackles
+        int bufferSize = Math.max(minBufferSize * 2, 16384);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             AudioTrack.Builder builder = new AudioTrack.Builder()
@@ -96,7 +92,7 @@ public class AudioPlayer {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             try {
                 int frameSize = 2 * 2;
-                int targetFrames = (SAMPLE_RATE * 30) / 1000;
+                int targetFrames = (SAMPLE_RATE * 50) / 1000; // 50ms buffer target (scrcpy standard)
                 int minFrames = minBufferSize / frameSize;
                 int optimalFrames = Math.max(targetFrames, minFrames);
                 audioTrack.setBufferSizeInFrames(optimalFrames);
@@ -106,7 +102,8 @@ public class AudioPlayer {
         totalWrittenFrames = 0;
         totalPlayedFrames = 0;
         lastHeadPosition = 0;
-        totalDroppedFrames = 0;
+        currentSpeed = 1.0f;
+        playbackStartTimeMs = System.currentTimeMillis();
 
         audioTrack.play();
         isRunning.set(true);
@@ -176,9 +173,10 @@ public class AudioPlayer {
 
         long queuedMs = (queuedFrames * 1000L) / SAMPLE_RATE;
 
-        // If buffer backlog is excessive (e.g. startup packet burst or severe network stall), flush hardware buffer
-        if (queuedMs > flushThresholdMs) {
-            Log.w(TAG, "Audio buffer backlog excessive (" + queuedMs + " ms > " + flushThresholdMs + " ms), flushing to restore real-time sync");
+        // Handle massive stalls / initial connection backlog (> 250ms)
+        long elapsedSinceStart = System.currentTimeMillis() - playbackStartTimeMs;
+        if (queuedMs > 250 || (elapsedSinceStart < 1200 && queuedMs > 80 && totalPlayedFrames == 0)) {
+            Log.w(TAG, "Audio buffer backlog excessive (" + queuedMs + " ms), flushing to resync to real-time");
             try {
                 audioTrack.pause();
                 audioTrack.flush();
@@ -191,19 +189,39 @@ public class AudioPlayer {
             totalWrittenFrames = 0;
             queuedFrames = 0;
             queuedMs = 0;
-        } else if (queuedMs > maxBufferedMs) {
-            // Clock drift: sender capturing slightly faster than receiver DAC, or transient burst.
-            // Drop this frame to prevent latency from growing over time.
-            totalDroppedFrames += (length / 4);
-            return;
+            currentSpeed = 1.0f;
         }
 
-        try {
-            int written;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                written = audioTrack.write(pcm, offset, length, AudioTrack.WRITE_NON_BLOCKING);
+        // Smooth clock drift regulation using native pitch-preserved time-stretching (API 23+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            float targetSpeed;
+            if (queuedMs > 100) {
+                targetSpeed = 1.08f; // 8% faster to quickly recover from network jitter
+            } else if (queuedMs > 60) {
+                targetSpeed = 1.03f; // 3% faster to gently eliminate hardware clock drift
+            } else if (queuedMs < 20) {
+                targetSpeed = 0.97f; // 3% slower to prevent buffer underrun crackles
             } else {
-                written = audioTrack.write(pcm, offset, length);
+                targetSpeed = 1.0f;  // Normal bit-perfect 1.0x playback
+            }
+
+            if (Math.abs(targetSpeed - currentSpeed) > 0.005f) {
+                try {
+                    PlaybackParams params = audioTrack.getPlaybackParams();
+                    params.setSpeed(targetSpeed);
+                    audioTrack.setPlaybackParams(params);
+                    currentSpeed = targetSpeed;
+                } catch (Exception ignored) {}
+            }
+        }
+
+        // Always write complete frames without slicing samples mid-wave (prevents crackling)
+        try {
+            int written = 0;
+            while (written < length && isRunning.get()) {
+                int w = audioTrack.write(pcm, offset + written, length - written);
+                if (w <= 0) break;
+                written += w;
             }
 
             if (written > 0) {
@@ -291,7 +309,7 @@ public class AudioPlayer {
         totalWrittenFrames = 0;
         totalPlayedFrames = 0;
         lastHeadPosition = 0;
-        totalDroppedFrames = 0;
+        currentSpeed = 1.0f;
         if (audioDecoder != null) {
             try {
                 audioDecoder.stop();

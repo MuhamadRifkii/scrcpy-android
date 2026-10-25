@@ -46,6 +46,7 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
     private int screenWidth = 1080;
     private int screenHeight = 1920;
     private boolean audioEnabled = false;
+    private boolean audioOnly = false;
     private boolean noControl = false;
     private boolean screenOff = false;
 
@@ -64,8 +65,8 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
             scrcpy.setServiceCallbacks(FloatService.this);
             serviceBound = true;
 
-            if (surface != null && surface.isValid()) {
-                scrcpy.start(surface, serverAdr, serverPort, screenHeight, screenWidth, audioEnabled);
+            if (audioOnly || (surface != null && surface.isValid())) {
+                scrcpy.start(surface, serverAdr, serverPort, screenHeight, screenWidth, audioEnabled, !audioOnly);
 
                 new Thread(() -> {
                     int count = 60;
@@ -91,7 +92,7 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
                             }
                             if (displayWindow != null) {
                                 displayWindow.hideHintTip();
-                                if (scrcpy != null) {
+                                if (!audioOnly && scrcpy != null) {
                                     int[] res = scrcpy.get_remote_device_resolution();
                                     if (res != null && res.length >= 2 && res[0] > 0 && res[1] > 0) {
                                         displayWindow.setRemote(res[0], res[1]);
@@ -189,16 +190,26 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         serverPort = intent.getIntExtra("port", 7007);
         screenWidth = intent.getIntExtra("width", intent.getIntExtra("w", 1080));
         screenHeight = intent.getIntExtra("height", intent.getIntExtra("h", 1920));
-        audioEnabled = intent.getBooleanExtra("audio", false);
+        audioOnly = intent.getBooleanExtra("audio_only", false);
+        if (audioOnly) {
+            audioEnabled = true;
+        } else {
+            audioEnabled = intent.getBooleanExtra("audio", false);
+        }
         noControl = intent.getBooleanExtra("no_control", false);
         screenOff = intent.getBooleanExtra("screen_off", false);
 
-        Log.d(TAG, "onStartCommand: server=" + serverAdr + ":" + serverPort + ", size=" + screenWidth + "x" + screenHeight);
+        Log.d(TAG, "onStartCommand: server=" + serverAdr + ":" + serverPort + ", audioOnly=" + audioOnly + ", size=" + screenWidth + "x" + screenHeight);
         if (displayWindow != null) {
-            displayWindow.setRemote(screenWidth, screenHeight);
+            if (audioOnly) {
+                displayWindow.setAudioOnlyMode(true);
+            } else {
+                displayWindow.setRemote(screenWidth, screenHeight);
+            }
         }
 
-        if (!serviceBound && surface != null && surface.isValid() && serverAdr != null && !serverAdr.isEmpty()) {
+        boolean canStart = (audioOnly || (surface != null && surface.isValid())) && serverAdr != null && !serverAdr.isEmpty();
+        if (!serviceBound && canStart) {
             Intent scrcpyIntent = new Intent(FloatService.this, Scrcpy.class);
             startService(scrcpyIntent);
             bindService(scrcpyIntent, serviceConnection, Context.BIND_AUTO_CREATE);
@@ -285,6 +296,7 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         displayWindow.setSurfaceReadyCallback(new DisplayWindow.SurfaceReadyCallback() {
             @Override
             public void onSurfaceReady(Surface readySurface) {
+                if (audioOnly) return;
                 surface = readySurface;
                 if (!serviceBound && serverAdr != null && !serverAdr.isEmpty()) {
                     Intent scrcpyIntent = new Intent(FloatService.this, Scrcpy.class);

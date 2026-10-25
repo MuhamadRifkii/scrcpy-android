@@ -35,6 +35,7 @@ public class Scrcpy extends Service {
     private String serverAdr;
     private int serverPort = 7007;
     private boolean audioEnabled = false;
+    private boolean videoEnabled = true;
     private Surface surface;
     private int screenWidth;
     private int screenHeight;
@@ -107,10 +108,14 @@ public class Scrcpy extends Service {
     }
 
     public void start(Surface surface, String serverAdr, int screenHeight, int screenWidth) {
-        start(surface, serverAdr, 7007, screenHeight, screenWidth, false);
+        start(surface, serverAdr, 7007, screenHeight, screenWidth, false, true);
     }
 
     public void start(Surface surface, String serverAdr, int serverPort, int screenHeight, int screenWidth, boolean audio) {
+        start(surface, serverAdr, serverPort, screenHeight, screenWidth, audio, true);
+    }
+
+    public void start(Surface surface, String serverAdr, int serverPort, int screenHeight, int screenWidth, boolean audio, boolean video) {
         this.surface = surface;
         if (serverAdr != null && serverAdr.contains(":")) {
             this.serverAdr = serverAdr.substring(0, serverAdr.indexOf(':')).trim();
@@ -121,9 +126,12 @@ public class Scrcpy extends Service {
         this.screenHeight = screenHeight;
         this.screenWidth = screenWidth;
         this.audioEnabled = audio;
+        this.videoEnabled = video;
 
-        this.videoDecoder = new VideoDecoder();
-        this.videoDecoder.start();
+        if (videoEnabled) {
+            this.videoDecoder = new VideoDecoder();
+            this.videoDecoder.start();
+        }
 
         isRunning.set(true);
         new Thread(this::connectionThread, "Scrcpy-Connect").start();
@@ -261,12 +269,14 @@ public class Scrcpy extends Service {
             try {
                 Log.d(TAG, "Connecting to server at " + serverAdr + ":" + serverPort);
 
-                // 1. Connect video socket
-                videoSocket = new Socket();
-                videoSocket.setReceiveBufferSize(1024 * 1024);
-                videoSocket.setSendBufferSize(256 * 1024);
-                videoSocket.connect(new java.net.InetSocketAddress(serverAdr, serverPort), 3000);
-                videoSocket.setTcpNoDelay(true);
+                // 1. Connect video socket if video is enabled
+                if (videoEnabled) {
+                    videoSocket = new Socket();
+                    videoSocket.setReceiveBufferSize(1024 * 1024);
+                    videoSocket.setSendBufferSize(256 * 1024);
+                    videoSocket.connect(new java.net.InetSocketAddress(serverAdr, serverPort), 3000);
+                    videoSocket.setTcpNoDelay(true);
+                }
 
                 // 2. Connect audio socket if enabled
                 if (audioEnabled) {
@@ -310,9 +320,10 @@ public class Scrcpy extends Service {
             new Thread(this::audioThread, "Scrcpy-Audio").start();
         }
 
-        // Run video on its own dedicated thread so audio + video run truly in parallel
-        // (previously videoThread() blocked connectionThread, starving audio startup)
-        new Thread(this::videoThread, "Scrcpy-Video").start();
+        // Run video on its own dedicated thread if video enabled
+        if (videoEnabled && videoSocket != null) {
+            new Thread(this::videoThread, "Scrcpy-Video").start();
+        }
     }
 
 
@@ -392,6 +403,13 @@ public class Scrcpy extends Service {
     private void audioThread() {
         try {
             DataInputStream dis = new DataInputStream(new BufferedInputStream(audioSocket.getInputStream(), 4096));
+
+            // When video is disabled, scrcpy-server sends the connection dummy byte on the first channel (audioSocket)
+            if (!videoEnabled) {
+                int dummy = dis.readByte();
+                Log.d(TAG, "Audio-only dummy byte read: " + dummy);
+            }
+
             int codecId = dis.readInt();
             Log.d(TAG, String.format("Audio Codec ID: 0x%08X", codecId));
 
