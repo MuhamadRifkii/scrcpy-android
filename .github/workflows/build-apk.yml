@@ -27,6 +27,11 @@ jobs:
             SDKMANAGER="$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
           fi
           yes | "$SDKMANAGER" --licenses > /dev/null || true
+          # The runner's bundled sdkmanager is too old to know the
+          # 'platforms;android-37' package; update cmdline-tools first.
+          "$SDKMANAGER" "cmdline-tools;latest"
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
           "$SDKMANAGER" "platforms;android-37" "build-tools;37.0.0"
 
       # The repo pins a JetBrains 25 daemon JVM and a Windows JBR path for
