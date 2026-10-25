@@ -31,6 +31,15 @@ public class AudioPlayer {
     private int codecId;
     private final AtomicBoolean isRunning = new AtomicBoolean(false);
 
+    private int minBufferMs = 20;
+    private int maxBufferedMs = 65;
+    private int flushThresholdMs = 125;
+
+    private long totalWrittenFrames = 0;
+    private long lastHeadPosition = 0;
+    private long totalPlayedFrames = 0;
+    private long totalDroppedFrames = 0;
+
     public interface AudioPcmListener {
         void onPcmData(byte[] pcm, int offset, int length);
     }
@@ -47,13 +56,19 @@ public class AudioPlayer {
 
     public void start() {
         int minBufferSize = AudioTrack.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
-        int bufferSize = Math.max(minBufferSize, 16384);
+        if (minBufferSize <= 0) {
+            minBufferSize = 4096;
+        }
+        int bufferSize = Math.max(minBufferSize, 4096);
+        minBufferMs = (minBufferSize * 1000) / (SAMPLE_RATE * 4);
+        maxBufferedMs = Math.max(65, minBufferMs + 25);
+        flushThresholdMs = maxBufferedMs + 60;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            audioTrack = new AudioTrack.Builder()
+            AudioTrack.Builder builder = new AudioTrack.Builder()
                     .setAudioAttributes(new AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .setUsage(AudioAttributes.USAGE_GAME)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                             .build())
                     .setAudioFormat(new AudioFormat.Builder()
                             .setEncoding(AUDIO_FORMAT)
@@ -61,8 +76,12 @@ public class AudioPlayer {
                             .setChannelMask(CHANNEL_CONFIG)
                             .build())
                     .setBufferSizeInBytes(bufferSize)
-                    .setTransferMode(AudioTrack.MODE_STREAM)
-                    .build();
+                    .setTransferMode(AudioTrack.MODE_STREAM);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                builder.setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY);
+            }
+            audioTrack = builder.build();
         } else {
             audioTrack = new AudioTrack(
                     AudioManager.STREAM_MUSIC,
@@ -73,6 +92,21 @@ public class AudioPlayer {
                     AudioTrack.MODE_STREAM
             );
         }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                int frameSize = 2 * 2;
+                int targetFrames = (SAMPLE_RATE * 30) / 1000;
+                int minFrames = minBufferSize / frameSize;
+                int optimalFrames = Math.max(targetFrames, minFrames);
+                audioTrack.setBufferSizeInFrames(optimalFrames);
+            } catch (Exception ignored) {}
+        }
+
+        totalWrittenFrames = 0;
+        totalPlayedFrames = 0;
+        lastHeadPosition = 0;
+        totalDroppedFrames = 0;
 
         audioTrack.play();
         isRunning.set(true);
@@ -102,9 +136,9 @@ public class AudioPlayer {
                 csd1.flip();
                 format.setByteBuffer("csd-1", csd1);
 
-                // csd-2: seek preroll in nanoseconds (default 80000000L = 80ms)
+                // csd-2: seek preroll in nanoseconds (0 for real-time live streaming)
                 ByteBuffer csd2 = ByteBuffer.allocate(8).order(ByteOrder.nativeOrder());
-                csd2.putLong(80000000L);
+                csd2.putLong(0L);
                 csd2.flip();
                 format.setByteBuffer("csd-2", csd2);
             }
@@ -124,19 +158,73 @@ public class AudioPlayer {
         }
     }
 
+    private void writePcm(byte[] pcm, int offset, int length) {
+        if (audioTrack == null || !isRunning.get() || length <= 0) {
+            return;
+        }
+
+        long currentHead = audioTrack.getPlaybackHeadPosition() & 0xFFFFFFFFL;
+        long deltaHead = (currentHead - lastHeadPosition) & 0xFFFFFFFFL;
+        totalPlayedFrames += deltaHead;
+        lastHeadPosition = currentHead;
+
+        long queuedFrames = totalWrittenFrames - totalPlayedFrames;
+        if (queuedFrames < 0) {
+            queuedFrames = 0;
+            totalWrittenFrames = totalPlayedFrames;
+        }
+
+        long queuedMs = (queuedFrames * 1000L) / SAMPLE_RATE;
+
+        // If buffer backlog is excessive (e.g. startup packet burst or severe network stall), flush hardware buffer
+        if (queuedMs > flushThresholdMs) {
+            Log.w(TAG, "Audio buffer backlog excessive (" + queuedMs + " ms > " + flushThresholdMs + " ms), flushing to restore real-time sync");
+            try {
+                audioTrack.pause();
+                audioTrack.flush();
+                audioTrack.play();
+            } catch (Exception e) {
+                Log.w(TAG, "Failed to flush audio track: " + e.getMessage());
+            }
+            lastHeadPosition = audioTrack.getPlaybackHeadPosition() & 0xFFFFFFFFL;
+            totalPlayedFrames = 0;
+            totalWrittenFrames = 0;
+            queuedFrames = 0;
+            queuedMs = 0;
+        } else if (queuedMs > maxBufferedMs) {
+            // Clock drift: sender capturing slightly faster than receiver DAC, or transient burst.
+            // Drop this frame to prevent latency from growing over time.
+            totalDroppedFrames += (length / 4);
+            return;
+        }
+
+        try {
+            int written;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                written = audioTrack.write(pcm, offset, length, AudioTrack.WRITE_NON_BLOCKING);
+            } else {
+                written = audioTrack.write(pcm, offset, length);
+            }
+
+            if (written > 0) {
+                totalWrittenFrames += (written / 4);
+                AudioPcmListener listener = pcmListener;
+                if (listener != null) {
+                    listener.onPcmData(pcm, offset, written);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error writing to AudioTrack", e);
+        }
+    }
+
     public synchronized void playSample(byte[] data, long pts, boolean isConfig) {
         if (!isRunning.get() || audioTrack == null) {
             return;
         }
 
         if (codecId == CODEC_RAW) {
-            try {
-                audioTrack.write(data, 0, data.length);
-                AudioPcmListener listener = pcmListener;
-                if (listener != null) {
-                    listener.onPcmData(data, 0, data.length);
-                }
-            } catch (Exception ignored) {}
+            writePcm(data, 0, data.length);
             return;
         }
 
@@ -180,11 +268,7 @@ public class AudioPlayer {
                     outputBuffer.limit(bufferInfo.offset + bufferInfo.size);
                     byte[] pcm = new byte[bufferInfo.size];
                     outputBuffer.get(pcm);
-                    audioTrack.write(pcm, 0, pcm.length);
-                    AudioPcmListener listener = pcmListener;
-                    if (listener != null) {
-                        listener.onPcmData(pcm, 0, pcm.length);
-                    }
+                    writePcm(pcm, 0, pcm.length);
                 }
                 audioDecoder.releaseOutputBuffer(outputIndex, false);
                 outputIndex = audioDecoder.dequeueOutputBuffer(bufferInfo, 0);
@@ -204,6 +288,10 @@ public class AudioPlayer {
 
     public synchronized void stop() {
         isRunning.set(false);
+        totalWrittenFrames = 0;
+        totalPlayedFrames = 0;
+        lastHeadPosition = 0;
+        totalDroppedFrames = 0;
         if (audioDecoder != null) {
             try {
                 audioDecoder.stop();

@@ -271,7 +271,7 @@ public class Scrcpy extends Service {
                 // 2. Connect audio socket if enabled
                 if (audioEnabled) {
                     audioSocket = new Socket();
-                    audioSocket.setReceiveBufferSize(256 * 1024);
+                    audioSocket.setReceiveBufferSize(32 * 1024);
                     audioSocket.connect(new java.net.InetSocketAddress(serverAdr, serverPort), 3000);
                     audioSocket.setTcpNoDelay(true);
                 }
@@ -391,7 +391,7 @@ public class Scrcpy extends Service {
 
     private void audioThread() {
         try {
-            DataInputStream dis = new DataInputStream(new BufferedInputStream(audioSocket.getInputStream(), 1 << 16));
+            DataInputStream dis = new DataInputStream(new BufferedInputStream(audioSocket.getInputStream(), 4096));
             int codecId = dis.readInt();
             Log.d(TAG, String.format("Audio Codec ID: 0x%08X", codecId));
 
