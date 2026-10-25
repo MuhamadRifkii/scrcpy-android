@@ -275,7 +275,12 @@ public class ScreenMirrorActivity extends Activity
         }
         if (!isFirstBind && serviceBound && scrcpy != null) {
             scrcpy.resume();
-            registerProximity();
+            if (screenOff) {
+                // Re-assert Screen Off Mirror after a pause/resume cycle
+                scrcpy.setDisplayPower(false);
+            } else {
+                registerProximity();
+            }
         }
     }
 
@@ -524,6 +529,9 @@ public class ScreenMirrorActivity extends Activity
 
     @Override
     public void onSensorChanged(SensorEvent event) {
+        // Screen Off Mirror takes precedence: while it is enabled, the controlled
+        // device's display must stay off, so proximity events must not power it on
+        if (screenOff) return;
         if (event.sensor.getType() == Sensor.TYPE_PROXIMITY) {
             Scrcpy s = scrcpy;
             if (serviceBound && s != null) {

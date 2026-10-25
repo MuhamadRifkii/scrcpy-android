@@ -579,6 +579,7 @@ public class MainActivity extends AppCompatActivity {
                     serviceIntent.putExtra("height", fResolution[1]);
                     serviceIntent.putExtra("audio", fAudio);
                     serviceIntent.putExtra("no_control", !fControl);
+                    serviceIntent.putExtra("screen_off", switchScreenOff.isChecked());
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         startForegroundService(serviceIntent);
                     } else {

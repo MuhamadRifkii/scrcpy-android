@@ -47,6 +47,7 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
     private int screenHeight = 1920;
     private boolean audioEnabled = false;
     private boolean noControl = false;
+    private boolean screenOff = false;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -83,6 +84,11 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
                             Toast.makeText(FloatService.this, R.string.msg_connection_timeout, Toast.LENGTH_SHORT).show();
                             stopSelf();
                         } else {
+                            if (screenOff && scrcpy != null) {
+                                // Screen Off Mirror: turn off the controlled device's
+                                // display now that the mirror connection is up
+                                scrcpy.setDisplayPower(false);
+                            }
                             if (displayWindow != null) {
                                 displayWindow.hideHintTip();
                                 if (scrcpy != null) {
@@ -185,6 +191,7 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         screenHeight = intent.getIntExtra("height", intent.getIntExtra("h", 1920));
         audioEnabled = intent.getBooleanExtra("audio", false);
         noControl = intent.getBooleanExtra("no_control", false);
+        screenOff = intent.getBooleanExtra("screen_off", false);
 
         Log.d(TAG, "onStartCommand: server=" + serverAdr + ":" + serverPort + ", size=" + screenWidth + "x" + screenHeight);
         if (displayWindow != null) {
