@@ -19,11 +19,15 @@ jobs:
           java-version: '21'
 
       # GitHub's ubuntu runners ship the Android SDK preinstalled
-      # (ANDROID_HOME); just add the platform/build-tools this project needs.
+      # (ANDROID_HOME), but sdkmanager is not on PATH; call it by full path.
       - name: Install SDK platform 37
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platforms;android-37" "build-tools;37.0.0"
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
+          fi
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platforms;android-37" "build-tools;37.0.0"
 
       # The repo pins a JetBrains 25 daemon JVM and a Windows JBR path for
       # local Android Studio use; neutralize both in the CI checkout only.
