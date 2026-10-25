@@ -1,0 +1,44 @@
+name: Build APK
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK platform 37
+        run: sdkmanager "platforms;android-37" "build-tools;37.0.0"
+
+      # The repo pins a JetBrains 25 daemon JVM and a Windows JBR path for
+      # local Android Studio use; neutralize both in the CI checkout only.
+      - name: Neutralize local-only Gradle settings
+        run: |
+          rm -f gradle/gradle-daemon-jvm.properties
+          sed -i '/^org.gradle.java.installations.paths=/d' gradle.properties
+
+      - name: Build debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --console=plain
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrcpy-android-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
