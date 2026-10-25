@@ -117,7 +117,7 @@ public class SendCommands {
         lastError = null;
 
         final StringBuilder command = new StringBuilder();
-        command.append("CLASSPATH=/data/local/tmp/scrcpy-server.jar app_process / com.genymobile.scrcpy.Server 4.1");
+        command.append("CLASSPATH=/data/local/tmp/scrcpy-server.jar app_process / com.genymobile.scrcpy.Server 5.0.1");
         command.append(" port=").append(port);
         command.append(" tunnel_forward=true");
         command.append(" video_bit_rate=").append(bitrate);

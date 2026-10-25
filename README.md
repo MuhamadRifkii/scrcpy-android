@@ -1,4 +1,4 @@
-# scrcpy-android (v4.1)
+# scrcpy-android (v5.0.1)
 
 <p align="center">
   <img src="docs/images/readme_main.jpg" width="270" alt="scrcpy-android 主界面" style="border-radius: 16px; margin: 6px;" />
@@ -7,8 +7,8 @@
 </p>
 
 <p align="center">
-  <b>Android 之间免 PC、免 Root 的高性能、超低延迟屏幕镜像与音频传输客户端，深度同步官方 Genymobile Scrcpy v4.1 协议。</b><br/>
-  <b>High-performance, low-latency Android-to-Android screen mirroring and audio forwarding client powered by official Genymobile Scrcpy v4.1.</b>
+  <b>Android 之间免 PC、免 Root 的高性能、超低延迟屏幕镜像与音频传输客户端，深度同步官方 Genymobile Scrcpy v5.0.1 协议。</b><br/>
+  <b>High-performance, low-latency Android-to-Android screen mirroring and audio forwarding client powered by official Genymobile Scrcpy v5.0.1.</b>
 </p>
 
 <p align="center">
@@ -17,7 +17,7 @@
 
 <p align="center">
   <a href="https://github.com/xlzhen-940218/scrcpy-android/releases"><img src="https://img.shields.io/badge/Release-Download%20APK-brightgreen?logo=android&logoColor=white" alt="Download APK" /></a>
-  <img src="https://img.shields.io/badge/scrcpy-v4.1-blue.svg" alt="scrcpy v4.1" />
+  <img src="https://img.shields.io/badge/scrcpy-v5.0.1-blue.svg" alt="scrcpy v5.0.1" />
   <img src="https://img.shields.io/badge/Platform-Android%205.0%2B-green.svg" alt="Platform" />
   <img src="https://img.shields.io/badge/Target%20SDK-34-brightgreen.svg" alt="Target SDK" />
   <img src="https://img.shields.io/badge/Design-Material%203-teal.svg" alt="Material 3" />
@@ -32,7 +32,7 @@
 
 **scrcpy-android** 是一款能够在两台 Android 设备之间（手机、平板、Android TV / 电视盒子）直接进行屏幕镜像、反向控制以及实时音频传输的开源客户端。无需电脑中转，两台设备均**无需 Root**。
 
-本项目基于官方 [Genymobile/scrcpy v4.1](https://github.com/Genymobile/scrcpy) 协议与服务端内核升级，支持硬件加速解码（H.264 / H.265 / AV1）、超低延迟音频转发（OPUS / AAC / PCM）、USB OTG 极速有线直连、Android 11+ 原生无线配对、双向横竖屏自适应同步，以及现代化的 Material Design 3 风格界面。
+本项目基于官方 [Genymobile/scrcpy v5.0.1](https://github.com/Genymobile/scrcpy) 协议与服务端内核升级，支持硬件加速解码（H.264 / H.265 / AV1）、超低延迟音频转发（OPUS / AAC / PCM）、USB OTG 极速有线直连、Android 11+ 原生无线配对、双向横竖屏自适应同步，以及现代化的 Material Design 3 风格界面。
 
 ---
 
@@ -154,7 +154,7 @@ app/build/outputs/apk/debug/app-debug.apk
 
 本项目离不开以下优秀的开源项目、库及社区贡献者的启发与支持：
 
-- **[Genymobile/scrcpy](https://github.com/Genymobile/scrcpy)**：由 Romain Vimont 及 Genymobile 团队打造的官方屏幕镜像核心，本项目底层协议与服务端均基于官方 v4.1 构建。
+- **[Genymobile/scrcpy](https://github.com/Genymobile/scrcpy)**：由 Romain Vimont 及 Genymobile 团队打造的官方屏幕镜像核心，本项目底层协议与服务端均基于官方 v5.0.1 构建。
 - **[huage2580/scrcpy-android](https://github.com/huage2580/scrcpy-android)**：Android 端投屏客户端的早期探索者与上游基础项目。
 - **[com.tananaev:adblib](https://github.com/tananaev/adblib)**：轻量级 Java ADB 协议通信库，用于经典 ADB Socket 建立与数据流转发。
 - **[com.github.MuntashirAkon:libadb-android](https://github.com/MuntashirAkon/libadb-android)**：现代 Android ADB 客户端实现，支持 Android 11+ TLS 无线配对与免 Root 调试。
@@ -169,7 +169,7 @@ app/build/outputs/apk/debug/app-debug.apk
 
 **scrcpy-android** is an open-source Android application that enables high-performance screen mirroring, low-latency audio forwarding, and remote touch control between two Android devices (smartphones, tablets, and Android TV / Google TV boxes). It operates directly device-to-device over **USB OTG** or **Wi-Fi**, requiring **no PC** and **no root access** on either device.
 
-Built on top of the official [Genymobile/scrcpy v4.1](https://github.com/Genymobile/scrcpy) protocol and server backend, it provides hardware-accelerated video decoding (H.264 / H.265 / AV1), real-time audio playback (OPUS / AAC / PCM), USB OTG bulk transfer, Android 11+ wireless TLS pairing, dynamic orientation synchronization, and a modern Material Design 3 interface.
+Built on top of the official [Genymobile/scrcpy v5.0.1](https://github.com/Genymobile/scrcpy) protocol and server backend, it provides hardware-accelerated video decoding (H.264 / H.265 / AV1), real-time audio playback (OPUS / AAC / PCM), USB OTG bulk transfer, Android 11+ wireless TLS pairing, dynamic orientation synchronization, and a modern Material Design 3 interface.
 
 ---
 
@@ -288,7 +288,7 @@ app/build/outputs/apk/debug/app-debug.apk
 
 This project is made possible thanks to the following outstanding open-source projects, libraries, and authors:
 
-- **[Genymobile/scrcpy](https://github.com/Genymobile/scrcpy)**: The official high-performance screen mirroring solution created by Romain Vimont and Genymobile team. The core protocol and server backend of this project are powered by official scrcpy v4.1.
+- **[Genymobile/scrcpy](https://github.com/Genymobile/scrcpy)**: The official high-performance screen mirroring solution created by Romain Vimont and Genymobile team. The core protocol and server backend of this project are powered by official scrcpy v5.0.1.
 - **[huage2580/scrcpy-android](https://github.com/huage2580/scrcpy-android)**: Upstream project and early pioneer of scrcpy client on Android.
 - **[com.tananaev:adblib](https://github.com/tananaev/adblib)**: Lightweight Java ADB protocol library for classic TCP/IP ADB connection and socket streams.
 - **[com.github.MuntashirAkon:libadb-android](https://github.com/MuntashirAkon/libadb-android)**: Modern Android ADB library powering native Android 11+ TLS wireless debugging and pairing.
@@ -318,7 +318,7 @@ scrcpy-android/
 │   │   └── usb/                      # USB Host ADB bridge & bulk packet forwarder
 │   └── src/main/res/                 # Layouts, SVG drawables, and bilingual strings (zh / en)
 │
-└── server/                           # Scrcpy v4.1 Java server
+└── server/                           # Scrcpy v5.0.1 Java server
     └── src/main/java/com/genymobile/scrcpy/
         ├── Server.java               # Scrcpy server entry point
         ├── Device.java               # Display capture, touch injection, orientation lock
