@@ -404,10 +404,16 @@ public class Scrcpy extends Service {
         try {
             DataInputStream dis = new DataInputStream(new BufferedInputStream(audioSocket.getInputStream(), 4096));
 
-            // When video is disabled, scrcpy-server sends the connection dummy byte on the first channel (audioSocket)
+            // When video is disabled, scrcpy-server sends the connection dummy byte and 64-byte device metadata
+            // on the first channel (audioSocket) instead of videoSocket.
             if (!videoEnabled) {
                 int dummy = dis.readByte();
                 Log.d(TAG, "Audio-only dummy byte read: " + dummy);
+
+                byte[] devMeta = new byte[64];
+                dis.readFully(devMeta);
+                deviceName = new String(devMeta, StandardCharsets.UTF_8).trim();
+                Log.d(TAG, "Audio-only device metadata: " + deviceName);
             }
 
             int codecId = dis.readInt();
@@ -415,6 +421,9 @@ public class Scrcpy extends Service {
 
             if (codecId == 0) {
                 Log.w(TAG, "Audio capture disabled by device");
+                if (!videoEnabled) {
+                    StopService();
+                }
                 return;
             }
 
@@ -442,6 +451,9 @@ public class Scrcpy extends Service {
         } finally {
             if (audioPlayer != null) {
                 audioPlayer.stop();
+            }
+            if (!videoEnabled) {
+                StopService();
             }
         }
     }

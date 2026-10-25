@@ -97,6 +97,14 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
                                     if (res != null && res.length >= 2 && res[0] > 0 && res[1] > 0) {
                                         displayWindow.setRemote(res[0], res[1]);
                                     }
+                                } else if (audioOnly && scrcpy != null) {
+                                    String dev = scrcpy.getDeviceName();
+                                    if (dev != null && !dev.isEmpty()) {
+                                        android.widget.TextView tvTitle = displayWindow.findViewById(R.id.tv_title);
+                                        if (tvTitle != null) {
+                                            tvTitle.setText(dev);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -203,6 +211,14 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         if (displayWindow != null) {
             if (audioOnly) {
                 displayWindow.setAudioOnlyMode(true);
+                if (lp != null && windowManager != null) {
+                    int speakerWidth = (int) (220 * getResources().getDisplayMetrics().density);
+                    lp.width = speakerWidth;
+                    lp.height = WindowManager.LayoutParams.WRAP_CONTENT;
+                    try {
+                        windowManager.updateViewLayout(displayWindow, lp);
+                    } catch (Exception ignored) {}
+                }
             } else {
                 displayWindow.setRemote(screenWidth, screenHeight);
             }

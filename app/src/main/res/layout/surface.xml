@@ -22,6 +22,46 @@
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintDimensionRatio="H,16:9" />
 
+    <!-- Remote Speaker layout (shown only when audio_only is true) -->
+    <LinearLayout
+        android:id="@+id/layout_audio_only_speaker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/nav_button_bar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:src="@drawable/ic_nav_vol_up"
+            app:tint="#4DB6AC"
+            android:contentDescription="@string/title_remote_speaker" />
+
+        <TextView
+            android:id="@+id/tv_speaker_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/title_remote_speaker"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_speaker_device"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/switch_audio_only"
+            android:textColor="#B0BEC5"
+            android:textSize="14sp" />
+    </LinearLayout>
+
     <!-- Navigation button bar: anchored to bottom, elevated above video -->
     <LinearLayout
         android:id="@+id/nav_button_bar"

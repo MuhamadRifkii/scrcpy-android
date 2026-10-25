@@ -512,6 +512,7 @@ public class MainActivity extends AppCompatActivity {
                     i.putExtra(ScreenMirrorActivity.EXTRA_SCREEN_WIDTH,  fResolution[0]);
                     i.putExtra(ScreenMirrorActivity.EXTRA_SCREEN_HEIGHT, fResolution[1]);
                     i.putExtra(ScreenMirrorActivity.EXTRA_AUDIO_ENABLED, fAudio);
+                    i.putExtra(ScreenMirrorActivity.EXTRA_AUDIO_ONLY,    fAudioOnly);
                     i.putExtra(ScreenMirrorActivity.EXTRA_NAV,           switch1.isChecked());
                     i.putExtra(ScreenMirrorActivity.EXTRA_NO_CONTROL,    !fControl);
                     i.putExtra(ScreenMirrorActivity.EXTRA_SCREEN_OFF,    switchScreenOff.isChecked());

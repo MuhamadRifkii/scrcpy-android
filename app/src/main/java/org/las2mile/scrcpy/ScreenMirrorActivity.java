@@ -51,6 +51,7 @@ public class ScreenMirrorActivity extends Activity
     public static final String EXTRA_SCREEN_WIDTH = "screen_width";
     public static final String EXTRA_SCREEN_HEIGHT = "screen_height";
     public static final String EXTRA_AUDIO_ENABLED = "audio_enabled";
+    public static final String EXTRA_AUDIO_ONLY = "audio_only";
     public static final String EXTRA_NAV = "nav";
     public static final String EXTRA_NO_CONTROL = "no_control";
     public static final String EXTRA_SCREEN_OFF = "screen_off";
@@ -61,6 +62,7 @@ public class ScreenMirrorActivity extends Activity
     private int screenWidth;
     private int screenHeight;
     private boolean audioEnabled;
+    private boolean audioOnly = false;
     private boolean nav;
     private boolean noControl;
     private boolean screenOff;
@@ -106,7 +108,7 @@ public class ScreenMirrorActivity extends Activity
 
             if (isFirstBind) {
                 // Kick off connection
-                scrcpy.start(surface, serverAdr, serverPort, screenHeight, screenWidth, audioEnabled);
+                scrcpy.start(surface, serverAdr, serverPort, screenHeight, screenWidth, audioEnabled, !audioOnly);
 
                 // Background thread waits for socket, then handles result on UI thread
                 new Thread(() -> {
@@ -137,14 +139,24 @@ public class ScreenMirrorActivity extends Activity
                                 if (screenOff) {
                                     scrcpy.setDisplayPower(false);
                                 }
+                                if (audioOnly) {
+                                    TextView tvDev = findViewById(R.id.tv_speaker_device);
+                                    if (tvDev != null && scrcpy.getDeviceName() != null && !scrcpy.getDeviceName().isEmpty()) {
+                                        tvDev.setText(scrcpy.getDeviceName());
+                                    }
+                                }
                             }
-                            adjustSurfaceLayout();
+                            if (!audioOnly) {
+                                adjustSurfaceLayout();
+                            }
                         }
                     });
                 }, "WaitSocketConnect").start();
             } else {
                 scrcpy.setParms(surface, screenWidth, screenHeight);
-                adjustSurfaceLayout();
+                if (!audioOnly) {
+                    adjustSurfaceLayout();
+                }
             }
         }
 
@@ -171,6 +183,10 @@ public class ScreenMirrorActivity extends Activity
         screenWidth    = i.getIntExtra(EXTRA_SCREEN_WIDTH, 1280);
         screenHeight   = i.getIntExtra(EXTRA_SCREEN_HEIGHT, 720);
         audioEnabled   = i.getBooleanExtra(EXTRA_AUDIO_ENABLED, false);
+        audioOnly      = i.getBooleanExtra(EXTRA_AUDIO_ONLY, false);
+        if (audioOnly) {
+            audioEnabled = true;
+        }
         nav            = i.getBooleanExtra(EXTRA_NAV, true);
         noControl      = i.getBooleanExtra(EXTRA_NO_CONTROL, false);
         screenOff      = i.getBooleanExtra(EXTRA_SCREEN_OFF, false);
@@ -196,8 +212,29 @@ public class ScreenMirrorActivity extends Activity
             }
         }
 
-        // Use SurfaceHolder callback so we get surface ready event
-        surfaceView.getHolder().addCallback(this);
+        if (audioOnly) {
+            if (surfaceView != null) {
+                surfaceView.setVisibility(View.GONE);
+            }
+            View speakerLayout = findViewById(R.id.layout_audio_only_speaker);
+            if (speakerLayout != null) {
+                speakerLayout.setVisibility(View.VISIBLE);
+            }
+            View tabScreenshot = findViewById(R.id.tab_screenshot);
+            if (tabScreenshot != null) tabScreenshot.setVisibility(View.GONE);
+            View tabRecord = findViewById(R.id.tab_record);
+            if (tabRecord != null) tabRecord.setVisibility(View.GONE);
+            View rotateBtn = findViewById(R.id.rotate_button);
+            if (rotateBtn != null) rotateBtn.setVisibility(View.GONE);
+
+            // Directly start and bind Scrcpy service for audio-only mode without waiting for Surface
+            Intent intent = new Intent(this, Scrcpy.class);
+            startService(intent);
+            bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
+        } else {
+            // Use SurfaceHolder callback so we get surface ready event
+            surfaceView.getHolder().addCallback(this);
+        }
 
         // Proximity sensor
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
@@ -274,7 +311,9 @@ public class ScreenMirrorActivity extends Activity
             orientationEventListener.enable();
         }
         if (!isFirstBind && serviceBound && scrcpy != null) {
-            scrcpy.resume();
+            if (!audioOnly) {
+                scrcpy.resume();
+            }
             if (screenOff) {
                 // Re-assert Screen Off Mirror after a pause/resume cycle
                 scrcpy.setDisplayPower(false);
@@ -291,7 +330,9 @@ public class ScreenMirrorActivity extends Activity
             orientationEventListener.disable();
         }
         if (sensorManager != null) sensorManager.unregisterListener(this);
-        if (serviceBound && scrcpy != null) scrcpy.pause();
+        if (serviceBound && scrcpy != null && !audioOnly) {
+            scrcpy.pause();
+        }
     }
 
     @Override
