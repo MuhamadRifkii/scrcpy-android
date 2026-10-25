@@ -522,6 +522,14 @@
                         android:focusable="true"
                         android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
 
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/switch_capture_buttons"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:text="@string/switch_capture_buttons"
+                        android:focusable="true"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
+
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

@@ -57,6 +57,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREF_NAV              = "Nav Switch";
     private static final String PREF_AUDIO            = "switch_audio";
     private static final String PREF_AUDIO_ONLY       = "switch_audio_only";
+    private static final String PREF_CAPTURE_BUTTONS  = "switch_capture_buttons";
     private static final String PREF_STAY_AWAKE       = "switch_stay_awake";
     private static final String PREF_SCREEN_OFF       = "switch_screen_off";
     private static final String PREF_SYNC_ROTATION    = "switch_sync_rotation";
@@ -89,6 +90,7 @@ public class MainActivity extends AppCompatActivity {
     private AutoCompleteTextView acAudioCodec;
     private MaterialSwitch switchAudio;
     private MaterialSwitch switchAudioOnly;
+    private MaterialSwitch switchCaptureButtons;
     private MaterialSwitch switchStayAwake;
     private MaterialSwitch switchScreenOff;
     private MaterialSwitch switchSyncRotation;
@@ -194,6 +196,7 @@ public class MainActivity extends AppCompatActivity {
         acAudioCodec         = findViewById(R.id.spinner_audio_codec);
         switchAudio          = findViewById(R.id.switch_audio);
         switchAudioOnly      = findViewById(R.id.switch_audio_only);
+        switchCaptureButtons = findViewById(R.id.switch_capture_buttons);
         switchStayAwake      = findViewById(R.id.switch_stay_awake);
         switchScreenOff      = findViewById(R.id.switch_screen_off);
         switchSyncRotation   = findViewById(R.id.switch_sync_rotation);
@@ -230,6 +233,9 @@ public class MainActivity extends AppCompatActivity {
         switchAudio.setChecked(p.getBoolean(PREF_AUDIO, true)); // Default TRUE as requested
         if (switchAudioOnly != null) {
             switchAudioOnly.setChecked(p.getBoolean(PREF_AUDIO_ONLY, false));
+        }
+        if (switchCaptureButtons != null) {
+            switchCaptureButtons.setChecked(p.getBoolean(PREF_CAPTURE_BUTTONS, true));
         }
         switchStayAwake.setChecked(p.getBoolean(PREF_STAY_AWAKE, true));
         switchScreenOff.setChecked(p.getBoolean(PREF_SCREEN_OFF, false));
@@ -307,6 +313,11 @@ public class MainActivity extends AppCompatActivity {
                     switchAudio.setChecked(true);
                 }
             });
+        }
+
+        if (switchCaptureButtons != null) {
+            switchCaptureButtons.setOnCheckedChangeListener((btn, checked) ->
+                    prefs().edit().putBoolean(PREF_CAPTURE_BUTTONS, checked).apply());
         }
 
         // No-control switch hides nav bar option
@@ -479,16 +490,18 @@ public class MainActivity extends AppCompatActivity {
         final boolean  fAudioOnly   = switchAudioOnly != null && switchAudioOnly.isChecked();
         final boolean  fAudio       = fAudioOnly || switchAudio.isChecked();
         final boolean  fVideo       = !fAudioOnly;
-        final String   fAudioCodec  = getSelectedAudioCodec();
+        final boolean  fAudioCodec  = false; // dummy
+        final String   fAudioCodecStr = getSelectedAudioCodec();
         final boolean  fControl     = !switch0.isChecked();
         final boolean  fStayAwake   = switchStayAwake.isChecked();
         final boolean  fSyncRotation= switchSyncRotation.isChecked();
+        final boolean  fCaptureButtons = switchCaptureButtons == null || switchCaptureButtons.isChecked();
         final int[]    fResolution  = getSelectedResolution();
         final int      fMaxSize     = Math.max(fResolution[0], fResolution[1]);
 
         new Thread(() -> {
             int res = sendCommands.SendAdbCommands(this, fileBase64, fAddr, 7007,
-                    fBitrate, fMaxSize, fMaxFps, fVideoCodec, fAudio, fAudioCodec, fControl, fStayAwake, fVideo);
+                    fBitrate, fMaxSize, fMaxFps, fVideoCodec, fAudio, fAudioCodecStr, fControl, fStayAwake, fVideo);
             runOnUiThread(() -> {
                 dialog.dismiss();
                 if (btnStart != null) {
@@ -507,16 +520,17 @@ public class MainActivity extends AppCompatActivity {
 
                     // Launch dedicated mirror activity
                     Intent i = new Intent(this, ScreenMirrorActivity.class);
-                    i.putExtra(ScreenMirrorActivity.EXTRA_SERVER_ADR,    isUsbMode ? "127.0.0.1" : fAddr);
-                    i.putExtra(ScreenMirrorActivity.EXTRA_SERVER_PORT,   7007);
-                    i.putExtra(ScreenMirrorActivity.EXTRA_SCREEN_WIDTH,  fResolution[0]);
-                    i.putExtra(ScreenMirrorActivity.EXTRA_SCREEN_HEIGHT, fResolution[1]);
-                    i.putExtra(ScreenMirrorActivity.EXTRA_AUDIO_ENABLED, fAudio);
-                    i.putExtra(ScreenMirrorActivity.EXTRA_AUDIO_ONLY,    fAudioOnly);
-                    i.putExtra(ScreenMirrorActivity.EXTRA_NAV,           switch1.isChecked());
-                    i.putExtra(ScreenMirrorActivity.EXTRA_NO_CONTROL,    !fControl);
-                    i.putExtra(ScreenMirrorActivity.EXTRA_SCREEN_OFF,    switchScreenOff.isChecked());
-                    i.putExtra(ScreenMirrorActivity.EXTRA_SYNC_ROTATION, fSyncRotation);
+                    i.putExtra(ScreenMirrorActivity.EXTRA_SERVER_ADR,      isUsbMode ? "127.0.0.1" : fAddr);
+                    i.putExtra(ScreenMirrorActivity.EXTRA_SERVER_PORT,     7007);
+                    i.putExtra(ScreenMirrorActivity.EXTRA_SCREEN_WIDTH,    fResolution[0]);
+                    i.putExtra(ScreenMirrorActivity.EXTRA_SCREEN_HEIGHT,   fResolution[1]);
+                    i.putExtra(ScreenMirrorActivity.EXTRA_AUDIO_ENABLED,   fAudio);
+                    i.putExtra(ScreenMirrorActivity.EXTRA_AUDIO_ONLY,      fAudioOnly);
+                    i.putExtra(ScreenMirrorActivity.EXTRA_CAPTURE_BUTTONS, fCaptureButtons);
+                    i.putExtra(ScreenMirrorActivity.EXTRA_NAV,             switch1.isChecked());
+                    i.putExtra(ScreenMirrorActivity.EXTRA_NO_CONTROL,      !fControl);
+                    i.putExtra(ScreenMirrorActivity.EXTRA_SCREEN_OFF,      switchScreenOff.isChecked());
+                    i.putExtra(ScreenMirrorActivity.EXTRA_SYNC_ROTATION,   fSyncRotation);
                     startActivity(i);
                 } else {
                     String err = sendCommands.getLastError();
@@ -577,6 +591,7 @@ public class MainActivity extends AppCompatActivity {
         final String  fAudioCodec = getSelectedAudioCodec();
         final boolean fControl    = !switch0.isChecked();
         final boolean fStayAwake  = switchStayAwake.isChecked();
+        final boolean fCaptureButtons = switchCaptureButtons == null || switchCaptureButtons.isChecked();
         final int[]   fResolution = getSelectedResolution();
         final int     fMaxSize    = Math.max(fResolution[0], fResolution[1]);
 
@@ -602,6 +617,7 @@ public class MainActivity extends AppCompatActivity {
                     serviceIntent.putExtra("height", fResolution[1]);
                     serviceIntent.putExtra("audio", fAudio);
                     serviceIntent.putExtra("audio_only", fAudioOnly);
+                    serviceIntent.putExtra("capture_buttons", fCaptureButtons);
                     serviceIntent.putExtra("video", fVideo);
                     serviceIntent.putExtra("no_control", !fControl);
                     serviceIntent.putExtra("screen_off", switchScreenOff.isChecked());

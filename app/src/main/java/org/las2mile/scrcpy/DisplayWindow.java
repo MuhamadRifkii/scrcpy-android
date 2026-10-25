@@ -47,6 +47,8 @@ public class DisplayWindow extends FrameLayout {
     private int remoteW = 1080;
     private int remoteH = 1920;
     private Surface surface;
+    private boolean isAudioOnly = false;
+    private boolean captureButtonsEnabled = true;
 
     public DisplayWindow(Context context) {
         super(context);
@@ -166,12 +168,20 @@ public class DisplayWindow extends FrameLayout {
         View miniBtn = findViewById(R.id.iv_mini);
         if (miniBtn != null) {
             miniBtn.setOnClickListener(v -> {
-                if (container.getVisibility() == View.VISIBLE) {
-                    container.setVisibility(View.GONE);
-                    actionbar.setVisibility(View.GONE);
+                if (isAudioOnly) {
+                    if (actionbar.getVisibility() == View.VISIBLE) {
+                        actionbar.setVisibility(View.GONE);
+                    } else {
+                        actionbar.setVisibility(View.VISIBLE);
+                    }
                 } else {
-                    container.setVisibility(View.VISIBLE);
-                    actionbar.setVisibility(View.VISIBLE);
+                    if (container.getVisibility() == View.VISIBLE) {
+                        container.setVisibility(View.GONE);
+                        actionbar.setVisibility(View.GONE);
+                    } else {
+                        container.setVisibility(View.VISIBLE);
+                        actionbar.setVisibility(View.VISIBLE);
+                    }
                 }
             });
         }
@@ -380,10 +390,10 @@ public class DisplayWindow extends FrameLayout {
         View recordBtn = findViewById(R.id.iv_record);
         boolean recording = (timerText != null && !timerText.isEmpty());
         if (recordBtn != null) {
-            recordBtn.setVisibility(recording ? GONE : VISIBLE);
+            recordBtn.setVisibility((recording || !captureButtonsEnabled || isAudioOnly) ? GONE : VISIBLE);
         }
         if (tvRecordTimer != null) {
-            tvRecordTimer.setVisibility(recording ? VISIBLE : GONE);
+            tvRecordTimer.setVisibility((recording && captureButtonsEnabled && !isAudioOnly) ? VISIBLE : GONE);
             if (recording) tvRecordTimer.setText(timerText);
         }
     }
@@ -401,6 +411,7 @@ public class DisplayWindow extends FrameLayout {
     }
 
     public void setAudioOnlyMode(boolean audioOnly) {
+        this.isAudioOnly = audioOnly;
         if (container != null) {
             container.setVisibility(audioOnly ? GONE : VISIBLE);
         }
@@ -410,12 +421,13 @@ public class DisplayWindow extends FrameLayout {
         }
         View rotate = findViewById(R.id.iv_rotate);
         if (rotate != null) rotate.setVisibility(audioOnly ? GONE : VISIBLE);
-        View screenshot = findViewById(R.id.iv_screenshot);
-        if (screenshot != null) screenshot.setVisibility(audioOnly ? GONE : VISIBLE);
-        View record = findViewById(R.id.iv_record);
-        if (record != null) record.setVisibility(audioOnly ? GONE : VISIBLE);
+
+        applyCaptureButtonsVisibility();
+
+        // Keep minimize button visible in remote speaker mode to collapse/expand controls
         View mini = findViewById(R.id.iv_mini);
-        if (mini != null) mini.setVisibility(audioOnly ? GONE : VISIBLE);
+        if (mini != null) mini.setVisibility(VISIBLE);
+
         View resize = findViewById(R.id.iv_resize);
         if (resize != null) resize.setVisibility(audioOnly ? GONE : VISIBLE);
         View actionBack = findViewById(R.id.action_back);
@@ -433,6 +445,25 @@ public class DisplayWindow extends FrameLayout {
                 lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
                 setLayoutParams(lp);
             }
+        }
+    }
+
+    public void setCaptureButtonsEnabled(boolean enabled) {
+        this.captureButtonsEnabled = enabled;
+        applyCaptureButtonsVisibility();
+    }
+
+    public void applyCaptureButtonsVisibility() {
+        View screenshot = findViewById(R.id.iv_screenshot);
+        View record = findViewById(R.id.iv_record);
+        View recordTimer = findViewById(R.id.tv_record_timer);
+        boolean show = captureButtonsEnabled && !isAudioOnly;
+        if (screenshot != null) screenshot.setVisibility(show ? VISIBLE : GONE);
+        if (record != null) {
+            record.setVisibility(show && (recordTimer == null || recordTimer.getVisibility() != VISIBLE) ? VISIBLE : GONE);
+        }
+        if (recordTimer != null && !show) {
+            recordTimer.setVisibility(GONE);
         }
     }
 

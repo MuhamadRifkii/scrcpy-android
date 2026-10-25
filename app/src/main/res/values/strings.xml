@@ -47,6 +47,8 @@
     <string name="switch_screen_off">熄屏镜像（连接后关闭被控设备屏幕）</string>
     <string name="switch0">仅观看（禁用对被控设备的触控和输入）</string>
     <string name="switch1">显示导航栏（被控设备无虚拟导航栏时开启）</string>
+    <string name="switch_capture_buttons">显示截图与录制快捷键</string>
+    <string name="btn_minimize">最小化</string>
 
     <!-- Nav buttons in mirroring screen -->
     <string name="back_button">◁</string>

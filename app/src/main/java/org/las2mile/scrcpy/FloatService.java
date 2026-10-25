@@ -47,6 +47,7 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
     private int screenHeight = 1920;
     private boolean audioEnabled = false;
     private boolean audioOnly = false;
+    private boolean captureButtons = true;
     private boolean noControl = false;
     private boolean screenOff = false;
 
@@ -199,6 +200,7 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         screenWidth = intent.getIntExtra("width", intent.getIntExtra("w", 1080));
         screenHeight = intent.getIntExtra("height", intent.getIntExtra("h", 1920));
         audioOnly = intent.getBooleanExtra("audio_only", false);
+        captureButtons = intent.getBooleanExtra("capture_buttons", true);
         if (audioOnly) {
             audioEnabled = true;
         } else {
@@ -209,6 +211,7 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
 
         Log.d(TAG, "onStartCommand: server=" + serverAdr + ":" + serverPort + ", audioOnly=" + audioOnly + ", size=" + screenWidth + "x" + screenHeight);
         if (displayWindow != null) {
+            displayWindow.setCaptureButtonsEnabled(captureButtons);
             if (audioOnly) {
                 displayWindow.setAudioOnlyMode(true);
                 if (lp != null && windowManager != null) {
@@ -237,6 +240,7 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
     private void setupDisplay() {
         Context themedContext = new androidx.appcompat.view.ContextThemeWrapper(this, R.style.AppTheme);
         displayWindow = new DisplayWindow(themedContext);
+        displayWindow.setCaptureButtonsEnabled(captureButtons);
         windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
 
         lp = new WindowManager.LayoutParams();

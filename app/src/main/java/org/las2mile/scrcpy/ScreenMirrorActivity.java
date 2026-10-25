@@ -21,6 +21,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -52,6 +53,7 @@ public class ScreenMirrorActivity extends Activity
     public static final String EXTRA_SCREEN_HEIGHT = "screen_height";
     public static final String EXTRA_AUDIO_ENABLED = "audio_enabled";
     public static final String EXTRA_AUDIO_ONLY = "audio_only";
+    public static final String EXTRA_CAPTURE_BUTTONS = "capture_buttons";
     public static final String EXTRA_NAV = "nav";
     public static final String EXTRA_NO_CONTROL = "no_control";
     public static final String EXTRA_SCREEN_OFF = "screen_off";
@@ -63,6 +65,7 @@ public class ScreenMirrorActivity extends Activity
     private int screenHeight;
     private boolean audioEnabled;
     private boolean audioOnly = false;
+    private boolean captureButtons = true;
     private boolean nav;
     private boolean noControl;
     private boolean screenOff;
@@ -184,6 +187,7 @@ public class ScreenMirrorActivity extends Activity
         screenHeight   = i.getIntExtra(EXTRA_SCREEN_HEIGHT, 720);
         audioEnabled   = i.getBooleanExtra(EXTRA_AUDIO_ENABLED, false);
         audioOnly      = i.getBooleanExtra(EXTRA_AUDIO_ONLY, false);
+        captureButtons = i.getBooleanExtra(EXTRA_CAPTURE_BUTTONS, true);
         if (audioOnly) {
             audioEnabled = true;
         }
@@ -226,6 +230,30 @@ public class ScreenMirrorActivity extends Activity
             if (tabRecord != null) tabRecord.setVisibility(View.GONE);
             View rotateBtn = findViewById(R.id.rotate_button);
             if (rotateBtn != null) rotateBtn.setVisibility(View.GONE);
+
+            // Remote speaker minimize button
+            View btnMinimize = findViewById(R.id.btn_speaker_minimize);
+            if (btnMinimize != null) {
+                btnMinimize.setOnClickListener(v -> {
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
+                        Intent floatIntent = new Intent(this, FloatService.class);
+                        floatIntent.putExtra("ip", serverAdr);
+                        floatIntent.putExtra("port", serverPort);
+                        floatIntent.putExtra("audio", true);
+                        floatIntent.putExtra("audio_only", true);
+                        floatIntent.putExtra("no_control", noControl);
+                        floatIntent.putExtra("capture_buttons", captureButtons);
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            startForegroundService(floatIntent);
+                        } else {
+                            startService(floatIntent);
+                        }
+                        finish();
+                    } else {
+                        moveTaskToBack(true);
+                    }
+                });
+            }
 
             // Directly start and bind Scrcpy service for audio-only mode without waiting for Surface
             Intent intent = new Intent(this, Scrcpy.class);
@@ -449,8 +477,19 @@ public class ScreenMirrorActivity extends Activity
 
     @SuppressLint("ClickableViewAccessibility")
     private void setupPullTabs() {
-        // ── Screenshot pull-tab (top-left) ────────────────────────────────
         View screenshotTab = findViewById(R.id.tab_screenshot);
+        View recordTab = findViewById(R.id.tab_record);
+
+        if (!captureButtons || audioOnly) {
+            if (screenshotTab != null) screenshotTab.setVisibility(View.GONE);
+            if (recordTab != null) recordTab.setVisibility(View.GONE);
+            return;
+        } else {
+            if (screenshotTab != null) screenshotTab.setVisibility(View.VISIBLE);
+            if (recordTab != null) recordTab.setVisibility(View.VISIBLE);
+        }
+
+        // ── Screenshot pull-tab (top-left) ────────────────────────────────
         if (screenshotTab != null) {
             screenshotTab.setOnTouchListener((v, event) -> {
                 switch (event.getActionMasked()) {
@@ -617,9 +656,25 @@ public class ScreenMirrorActivity extends Activity
         if (!(containerLayout instanceof ConstraintLayout)) return;
         if (remoteDeviceWidth <= 0 || remoteDeviceHeight <= 0) return;
 
-        // Format: "H,W:H" or "W,W:H" — ConstraintLayout will fit this ratio inside the available space centered
+        if (containerLayout.getWidth() <= 0 || containerLayout.getHeight() <= 0) {
+            containerLayout.post(this::adjustSurfaceLayout);
+            return;
+        }
+
+        float availableW = containerLayout.getWidth();
+        float navH = (navBar != null && navBar.getVisibility() == View.VISIBLE) ? navBar.getHeight() : 0;
+        if (navH <= 0 && nav && !noControl) {
+            navH = 52 * getResources().getDisplayMetrics().density;
+        }
+        float availableH = Math.max(1f, containerLayout.getHeight() - navH);
+
+        float containerRatio = availableW / availableH;
+        float remoteRatio = remoteDeviceWidth / remoteDeviceHeight;
+
+        // When remote screen is wider than available container space, constrain height by width ("H,W:H")
+        // When remote screen is taller than available container space, constrain width by height ("W,W:H")
         String ratio;
-        if (remoteDeviceWidth >= remoteDeviceHeight) {
+        if (remoteRatio > containerRatio) {
             ratio = "H," + (int) remoteDeviceWidth + ":" + (int) remoteDeviceHeight;
         } else {
             ratio = "W," + (int) remoteDeviceWidth + ":" + (int) remoteDeviceHeight;
@@ -629,6 +684,8 @@ public class ScreenMirrorActivity extends Activity
         androidx.constraintlayout.widget.ConstraintSet cs = new androidx.constraintlayout.widget.ConstraintSet();
         cs.clone(cl);
         cs.setDimensionRatio(R.id.decoder_surface, ratio);
+        cs.setConstrainedWidth(R.id.decoder_surface, true);
+        cs.setConstrainedHeight(R.id.decoder_surface, true);
         cs.applyTo(cl);
 
         if (navBar != null) {
