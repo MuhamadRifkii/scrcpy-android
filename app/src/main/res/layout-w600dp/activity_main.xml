@@ -130,6 +130,9 @@
                                 app:placeholderText="@string/hint_server_ip"
                                 app:helperText="@string/hint_adb_instruction"
                                 app:helperTextEnabled="true"
+                                app:endIconMode="custom"
+                                app:endIconDrawable="@drawable/ic_qr_code"
+                                app:endIconContentDescription="@string/btn_scan_qr"
                                 style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
                                 <com.google.android.material.textfield.MaterialAutoCompleteTextView
@@ -144,6 +147,70 @@
                                     android:nextFocusDown="@+id/button_adb_pair" />
 
                             </com.google.android.material.textfield.TextInputLayout>
+
+                            <!-- Auto-Discovered Device Banner -->
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/card_discovered_device"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:visibility="gone"
+                                app:cardElevation="0dp"
+                                app:cardCornerRadius="12dp"
+                                app:strokeWidth="1dp"
+                                app:strokeColor="?attr/colorPrimary"
+                                app:cardBackgroundColor="?attr/colorSurfaceVariant">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:padding="12dp">
+
+                                    <ImageView
+                                        android:id="@+id/iv_discovered_icon"
+                                        android:layout_width="24dp"
+                                        android:layout_height="24dp"
+                                        android:layout_marginEnd="10dp"
+                                        android:src="@drawable/ic_sparkle"
+                                        app:tint="?attr/colorPrimary" />
+
+                                    <LinearLayout
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:orientation="vertical">
+
+                                        <TextView
+                                            android:id="@+id/tv_discovered_title"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/discovery_title"
+                                            android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                                            android:textColor="?attr/colorPrimary" />
+
+                                        <TextView
+                                            android:id="@+id/tv_discovered_subtitle"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:textSize="12sp"
+                                            android:textColor="?attr/colorOnSurfaceVariant" />
+
+                                    </LinearLayout>
+
+                                    <com.google.android.material.button.MaterialButton
+                                        android:id="@+id/btn_discovered_action"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginStart="8dp"
+                                        android:text="@string/discovery_btn_use"
+                                        android:textAllCaps="false"
+                                        style="@style/Widget.Material3.Button.TonalButton" />
+
+                                </LinearLayout>
+
+                            </com.google.android.material.card.MaterialCardView>
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/button_adb_pair"

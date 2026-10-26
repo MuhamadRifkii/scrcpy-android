@@ -72,6 +72,22 @@
     <string name="pair_dialog_btn_cancel">取消</string>
     <string name="pair_success">配对成功！请在主界面输入无线调试连接端口后点击【全屏投屏】</string>
 
+    <!-- Auto-Discovery & QR Code -->
+    <string name="discovery_title">局域网自动发现</string>
+    <string name="discovery_status_scanning">正在扫描局域网设备…</string>
+    <string name="discovery_detected_connect">⚡ 发现设备：%s</string>
+    <string name="discovery_detected_pairing">🔑 发现待配对设备：%s</string>
+    <string name="discovery_btn_use">填入</string>
+    <string name="discovery_btn_pair">配对</string>
+    <string name="discovery_tag">⚡ [已发现]</string>
+    <string name="discovery_auto_updated_port">已自动更新连接端口至 %d</string>
+    <string name="discovery_auto_detected_badge">✨ 局域网已自动匹配 IP 与端口</string>
+    <string name="btn_scan_qr">扫描二维码</string>
+    <string name="qr_dialog_no_scanner_title">未找到扫码应用</string>
+    <string name="qr_dialog_no_scanner_msg">设备上未检测到支持的条码扫描器。\n\n提示：推荐使用【自动发现】，只需在被控端开启无线调试即可自动抓取 IP 与端口，无需扫码！</string>
+    <string name="qr_parsed_success">已成功识别二维码：%s</string>
+    <string name="qr_invalid">无法识别二维码中的 ADB/IP 内容</string>
+
     <!-- Messages -->
     <string name="msg_connecting">正在连接，请稍候…</string>
     <string name="msg_deploying_server">正在部署 scrcpy 服务</string>

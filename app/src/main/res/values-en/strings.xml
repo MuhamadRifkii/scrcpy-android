@@ -72,6 +72,22 @@
     <string name="pair_dialog_btn_cancel">Cancel</string>
     <string name="pair_success">Paired! Enter the wireless debug connection port and tap Fullscreen Mirror.</string>
 
+    <!-- Auto-Discovery & QR Code -->
+    <string name="discovery_title">Local Auto-Discovery</string>
+    <string name="discovery_status_scanning">Scanning local network for devices…</string>
+    <string name="discovery_detected_connect">⚡ Discovered: %s</string>
+    <string name="discovery_detected_pairing">🔑 Pairing ready: %s</string>
+    <string name="discovery_btn_use">Use</string>
+    <string name="discovery_btn_pair">Pair</string>
+    <string name="discovery_tag">⚡ [Discovered]</string>
+    <string name="discovery_auto_updated_port">Connection port auto-updated to %d</string>
+    <string name="discovery_auto_detected_badge">✨ IP and port auto-detected via network</string>
+    <string name="btn_scan_qr">Scan QR Code</string>
+    <string name="qr_dialog_no_scanner_title">No QR Scanner Found</string>
+    <string name="qr_dialog_no_scanner_msg">No compatible barcode scanner app was found on this device.\n\nTip: You can use Auto-Discovery instead! Simply enable Wireless Debugging on the target phone and it will be discovered automatically without scanning!</string>
+    <string name="qr_parsed_success">QR recognized: %s</string>
+    <string name="qr_invalid">Could not parse ADB/IP from QR code</string>
+
     <!-- Messages -->
     <string name="msg_connecting">Connecting, please wait…</string>
     <string name="msg_deploying_server">Deploying scrcpy server</string>

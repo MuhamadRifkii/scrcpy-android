@@ -21,6 +21,7 @@ import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.view.LayoutInflater;
 import android.view.View;
+import java.util.ArrayList;
 import java.util.List;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
@@ -39,6 +40,8 @@ import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputLayout;
 
+import org.las2mile.scrcpy.adb.AdbDiscoveryManager;
+import org.las2mile.scrcpy.adb.AdbDiscoveryManager.DiscoveredDevice;
 import org.las2mile.scrcpy.adb.AdbPairingHelper;
 import org.las2mile.scrcpy.history.ConnectionHistoryManager;
 import org.las2mile.scrcpy.usb.UsbAdbManager;
@@ -105,6 +108,24 @@ public class MainActivity extends AppCompatActivity {
     private UsbAdbManager usbManager;
     private boolean isUsbMode = false;
 
+    // Discovery & QR
+    private static final int REQUEST_CODE_QR_SCAN = 1001;
+    private AdbDiscoveryManager discoveryManager;
+    private View cardDiscoveredDevice;
+    private ImageView ivDiscoveredIcon;
+    private TextView tvDiscoveredTitle;
+    private TextView tvDiscoveredSubtitle;
+    private MaterialButton btnDiscoveredAction;
+    private TextInputLayout tilServerHost;
+    private DiscoveredDevice latestConnectDevice;
+    private DiscoveredDevice latestPairingDevice;
+    private String lastPairedHost = null;
+
+    // Active pair dialog references for real-time updates
+    private android.widget.EditText activeDialogHost;
+    private android.widget.EditText activeDialogPort;
+    private TextView activeDialogAutoBadge;
+
     // ────────────────────────────────────────────────────────────────────────
     // Lifecycle
     // ────────────────────────────────────────────────────────────────────────
@@ -129,6 +150,7 @@ public class MainActivity extends AppCompatActivity {
         setupUsbListener();
         restorePreferences();
         setupListeners();
+        setupDiscovery();
     }
 
     @Override
@@ -136,6 +158,17 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         refreshHistoryCard();
         refreshHostDropdown();
+        if (!isUsbMode && discoveryManager != null) {
+            discoveryManager.startDiscovery();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (discoveryManager != null) {
+            discoveryManager.stopDiscovery();
+        }
     }
 
     @Override
@@ -154,6 +187,9 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         if (usbManager != null) {
             usbManager.unregister();
+        }
+        if (discoveryManager != null) {
+            discoveryManager.stopDiscovery();
         }
     }
 
@@ -182,6 +218,12 @@ public class MainActivity extends AppCompatActivity {
         layoutUsbConnection  = findViewById(R.id.layout_usb_connection);
         tvUsbStatus          = findViewById(R.id.tv_usb_status);
         btnUsbConnect        = findViewById(R.id.button_usb_connect);
+        tilServerHost        = findViewById(R.id.til_server_host);
+        cardDiscoveredDevice = findViewById(R.id.card_discovered_device);
+        ivDiscoveredIcon     = findViewById(R.id.iv_discovered_icon);
+        tvDiscoveredTitle    = findViewById(R.id.tv_discovered_title);
+        tvDiscoveredSubtitle = findViewById(R.id.tv_discovered_subtitle);
+        btnDiscoveredAction  = findViewById(R.id.btn_discovered_action);
         etServerHost         = findViewById(R.id.editText_server_host);
         btnThemeToggle       = findViewById(R.id.btn_theme_toggle);
         cardHistory          = findViewById(R.id.card_history);
@@ -331,6 +373,11 @@ public class MainActivity extends AppCompatActivity {
         View pairBtn = findViewById(R.id.button_adb_pair);
         if (pairBtn != null) pairBtn.setOnClickListener(v -> showPairDialog());
 
+        // QR Code scan action on Server Host field
+        if (tilServerHost != null) {
+            tilServerHost.setEndIconOnClickListener(v -> launchQrScanner());
+        }
+
         // Fullscreen start
         if (btnStart != null) btnStart.setOnClickListener(v -> onStartFullscreen());
 
@@ -410,6 +457,7 @@ public class MainActivity extends AppCompatActivity {
     private void setConnectionMode(boolean usb) {
         isUsbMode = usb;
         if (usb) {
+            if (discoveryManager != null) discoveryManager.stopDiscovery();
             if (layoutWifiConnection != null) layoutWifiConnection.setVisibility(View.GONE);
             if (layoutUsbConnection != null)  layoutUsbConnection.setVisibility(View.VISIBLE);
             if (btnStart != null) {
@@ -417,6 +465,7 @@ public class MainActivity extends AppCompatActivity {
             }
             updateUsbDeviceUI();
         } else {
+            if (discoveryManager != null) discoveryManager.startDiscovery();
             if (layoutWifiConnection != null) layoutWifiConnection.setVisibility(View.VISIBLE);
             if (layoutUsbConnection != null)  layoutUsbConnection.setVisibility(View.GONE);
             if (btnStart != null) {
@@ -649,10 +698,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // Wireless Pairing dialog
+    // Wireless Pairing dialog & Auto-Discovery & QR
     // ────────────────────────────────────────────────────────────────────────
 
     private void showPairDialog() {
+        if (latestPairingDevice != null) {
+            showPairDialog(latestPairingDevice.getHost(), latestPairingDevice.getPort(), "");
+        } else {
+            showPairDialog("", 0, "");
+        }
+    }
+
+    private void showPairDialog(String prefillHost, int prefillPort, String prefillCode) {
         LayoutInflater inflater = LayoutInflater.from(this);
         View dialogView = inflater.inflate(R.layout.dialog_adb_pair, null);
 
@@ -661,13 +718,36 @@ public class MainActivity extends AppCompatActivity {
         android.widget.EditText etCode = dialogView.findViewById(R.id.et_pair_code);
         ProgressBar progressBar  = dialogView.findViewById(R.id.pb_pair_progress);
         TextView tvStatus        = dialogView.findViewById(R.id.tv_pair_status);
+        TextView tvAutoBadge     = dialogView.findViewById(R.id.tv_pair_auto_badge);
+        View btnScanQr           = dialogView.findViewById(R.id.btn_pair_scan_qr);
 
-        String currentHost = etServerHost != null && etServerHost.getText() != null
-                ? etServerHost.getText().toString().trim() : "";
-        if (!currentHost.isEmpty()) {
-            int colon = currentHost.indexOf(':');
-            etHost.setText(colon != -1 ? currentHost.substring(0, colon) : currentHost);
+        if (btnScanQr != null) {
+            btnScanQr.setOnClickListener(v -> launchQrScanner());
         }
+
+        if (prefillHost != null && !prefillHost.isEmpty()) {
+            etHost.setText(prefillHost);
+        } else {
+            String currentHost = etServerHost != null && etServerHost.getText() != null
+                    ? etServerHost.getText().toString().trim() : "";
+            if (!currentHost.isEmpty()) {
+                int colon = currentHost.indexOf(':');
+                etHost.setText(colon != -1 ? currentHost.substring(0, colon) : currentHost);
+            }
+        }
+
+        if (prefillPort > 0) {
+            etPort.setText(String.valueOf(prefillPort));
+            if (tvAutoBadge != null) tvAutoBadge.setVisibility(View.VISIBLE);
+        }
+
+        if (prefillCode != null && !prefillCode.isEmpty()) {
+            etCode.setText(prefillCode);
+        }
+
+        activeDialogHost = etHost;
+        activeDialogPort = etPort;
+        activeDialogAutoBadge = tvAutoBadge;
 
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(getString(R.string.pair_dialog_title))
@@ -676,7 +756,17 @@ public class MainActivity extends AppCompatActivity {
                 .setNegativeButton(getString(R.string.pair_dialog_btn_cancel), (d, w) -> d.dismiss())
                 .create();
 
+        dialog.setOnDismissListener(d -> {
+            activeDialogHost = null;
+            activeDialogPort = null;
+            activeDialogAutoBadge = null;
+        });
+
         dialog.show();
+
+        if (prefillPort > 0) {
+            etCode.requestFocus();
+        }
 
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             String host = etHost.getText() != null ? etHost.getText().toString().trim() : "";
@@ -707,8 +797,17 @@ public class MainActivity extends AppCompatActivity {
                 public void onSuccess() {
                     progressBar.setVisibility(View.GONE);
                     Toast.makeText(MainActivity.this, getString(R.string.pair_success), Toast.LENGTH_LONG).show();
+                    lastPairedHost = host;
                     dialog.dismiss();
-                    if (etServerHost != null) {
+
+                    // If a connect device is already known for this host, set it immediately!
+                    if (latestConnectDevice != null && host.equalsIgnoreCase(latestConnectDevice.getHost())) {
+                        if (etServerHost != null) {
+                            etServerHost.setText(latestConnectDevice.getAddress(), false);
+                            etServerHost.setSelection(latestConnectDevice.getAddress().length());
+                            prefs().edit().putString(PREF_SERVER_ADDRESS, latestConnectDevice.getAddress()).apply();
+                        }
+                    } else if (etServerHost != null) {
                         etServerHost.setText(host + ":");
                         etServerHost.setSelection(etServerHost.getText().length());
                         etServerHost.requestFocus();
@@ -724,6 +823,194 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         });
+    }
+
+    private void setupDiscovery() {
+        discoveryManager = new AdbDiscoveryManager(this);
+        discoveryManager.setCallback(new AdbDiscoveryManager.DiscoveryCallback() {
+            @Override
+            public void onDeviceDiscovered(DiscoveredDevice device) {
+                runOnUiThread(() -> handleDeviceDiscovered(device));
+            }
+
+            @Override
+            public void onDeviceLost(DiscoveredDevice device) {
+                runOnUiThread(() -> handleDeviceLost(device));
+            }
+        });
+    }
+
+    private void handleDeviceDiscovered(DiscoveredDevice device) {
+        if (device.isPairing()) {
+            latestPairingDevice = device;
+            if (activeDialogHost != null && activeDialogPort != null) {
+                if (TextUtils.isEmpty(activeDialogHost.getText())) {
+                    activeDialogHost.setText(device.getHost());
+                }
+                activeDialogPort.setText(String.valueOf(device.getPort()));
+                if (activeDialogAutoBadge != null) {
+                    activeDialogAutoBadge.setVisibility(View.VISIBLE);
+                }
+            }
+            updateDiscoveredDeviceUI();
+        } else {
+            latestConnectDevice = device;
+            String currentAddr = etServerHost != null && etServerHost.getText() != null
+                    ? etServerHost.getText().toString().trim() : "";
+            boolean isJustPaired = lastPairedHost != null && lastPairedHost.equalsIgnoreCase(device.getHost());
+            boolean sameHost = false;
+            if (!currentAddr.isEmpty()) {
+                int colon = currentAddr.indexOf(':');
+                String currentHost = colon != -1 ? currentAddr.substring(0, colon) : currentAddr;
+                sameHost = currentHost.equalsIgnoreCase(device.getHost());
+            }
+
+            if (isJustPaired || (sameHost && !currentAddr.equals(device.getAddress()))) {
+                if (etServerHost != null) {
+                    etServerHost.setText(device.getAddress(), false);
+                    etServerHost.setSelection(device.getAddress().length());
+                    prefs().edit().putString(PREF_SERVER_ADDRESS, device.getAddress()).apply();
+                }
+                Toast.makeText(this, getString(R.string.discovery_auto_updated_port, device.getPort()), Toast.LENGTH_SHORT).show();
+                lastPairedHost = null;
+            }
+
+            updateDiscoveredDeviceUI();
+            refreshHostDropdown();
+        }
+    }
+
+    private void handleDeviceLost(DiscoveredDevice device) {
+        if (latestPairingDevice != null && device.getAddress().equals(latestPairingDevice.getAddress())) {
+            latestPairingDevice = null;
+        }
+        if (latestConnectDevice != null && device.getAddress().equals(latestConnectDevice.getAddress())) {
+            latestConnectDevice = null;
+        }
+        updateDiscoveredDeviceUI();
+        refreshHostDropdown();
+    }
+
+    private void updateDiscoveredDeviceUI() {
+        if (cardDiscoveredDevice == null) return;
+
+        if (latestPairingDevice != null) {
+            cardDiscoveredDevice.setVisibility(View.VISIBLE);
+            if (ivDiscoveredIcon != null) {
+                ivDiscoveredIcon.setImageResource(R.drawable.ic_sparkle);
+            }
+            if (tvDiscoveredTitle != null) {
+                tvDiscoveredTitle.setText(getString(R.string.discovery_detected_pairing, latestPairingDevice.getAddress()));
+            }
+            if (tvDiscoveredSubtitle != null) {
+                tvDiscoveredSubtitle.setText(latestPairingDevice.getDisplayName());
+            }
+            if (btnDiscoveredAction != null) {
+                btnDiscoveredAction.setText(R.string.discovery_btn_pair);
+                btnDiscoveredAction.setOnClickListener(v ->
+                        showPairDialog(latestPairingDevice.getHost(), latestPairingDevice.getPort(), ""));
+            }
+        } else if (latestConnectDevice != null) {
+            cardDiscoveredDevice.setVisibility(View.VISIBLE);
+            if (ivDiscoveredIcon != null) {
+                ivDiscoveredIcon.setImageResource(R.drawable.ic_sparkle);
+            }
+            if (tvDiscoveredTitle != null) {
+                tvDiscoveredTitle.setText(getString(R.string.discovery_detected_connect, latestConnectDevice.getAddress()));
+            }
+            if (tvDiscoveredSubtitle != null) {
+                tvDiscoveredSubtitle.setText(latestConnectDevice.getDisplayName());
+            }
+            if (btnDiscoveredAction != null) {
+                btnDiscoveredAction.setText(R.string.discovery_btn_use);
+                btnDiscoveredAction.setOnClickListener(v -> {
+                    if (etServerHost != null) {
+                        etServerHost.setText(latestConnectDevice.getAddress(), false);
+                        etServerHost.setSelection(latestConnectDevice.getAddress().length());
+                        prefs().edit().putString(PREF_SERVER_ADDRESS, latestConnectDevice.getAddress()).apply();
+                    }
+                });
+            }
+        } else {
+            cardDiscoveredDevice.setVisibility(View.GONE);
+        }
+    }
+
+    private void launchQrScanner() {
+        Intent intent = new Intent("com.google.zxing.client.android.SCAN");
+        intent.putExtra("SCAN_MODE", "QR_CODE_MODE");
+        try {
+            startActivityForResult(intent, REQUEST_CODE_QR_SCAN);
+        } catch (Exception e) {
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.qr_dialog_no_scanner_title)
+                    .setMessage(R.string.qr_dialog_no_scanner_msg)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_QR_SCAN && resultCode == RESULT_OK && data != null) {
+            String raw = data.getStringExtra("SCAN_RESULT");
+            if (raw == null || raw.trim().isEmpty()) {
+                raw = data.getDataString();
+            }
+            if (raw != null) {
+                handleScannedQr(raw.trim());
+            }
+        }
+    }
+
+    private void handleScannedQr(String raw) {
+        if (raw == null || raw.isEmpty()) return;
+
+        // 1. Android 11+ pairing QR format: WIFI:T:ADB;S:<name>;P:<pass>;;
+        if (raw.startsWith("WIFI:T:ADB;")) {
+            String s = "";
+            String p = "";
+            String[] parts = raw.split(";");
+            for (String part : parts) {
+                if (part.startsWith("S:")) s = part.substring(2);
+                else if (part.startsWith("P:")) p = part.substring(2);
+            }
+            if (!p.isEmpty()) {
+                Toast.makeText(this, getString(R.string.qr_parsed_success, "Pass: " + p), Toast.LENGTH_SHORT).show();
+                if (latestPairingDevice != null) {
+                    showPairDialog(latestPairingDevice.getHost(), latestPairingDevice.getPort(), p);
+                } else {
+                    showPairDialog("", 0, p);
+                }
+                return;
+            }
+        }
+
+        // 2. Format: host:port:pin
+        String[] colonParts = raw.split(":");
+        if (colonParts.length == 3) {
+            String host = colonParts[0].trim();
+            try {
+                int port = Integer.parseInt(colonParts[1].trim());
+                String code = colonParts[2].trim();
+                showPairDialog(host, port, code);
+                return;
+            } catch (NumberFormatException ignored) {}
+        }
+
+        // 3. Format: host:port or host
+        if (raw.matches("^[0-9]{1,3}(\\.[0-9]{1,3}){3}(:[0-9]{1,5})?$")) {
+            if (etServerHost != null) {
+                etServerHost.setText(raw, false);
+                etServerHost.setSelection(raw.length());
+                prefs().edit().putString(PREF_SERVER_ADDRESS, raw).apply();
+            }
+            Toast.makeText(this, getString(R.string.qr_parsed_success, raw), Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Toast.makeText(this, R.string.qr_invalid, Toast.LENGTH_SHORT).show();
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -826,20 +1113,40 @@ public class MainActivity extends AppCompatActivity {
 
     private void refreshHostDropdown() {
         if (etServerHost == null || historyManager == null) return;
+        List<String> items = new ArrayList<>();
+        if (discoveryManager != null) {
+            List<DiscoveredDevice> discovered = discoveryManager.getDiscoveredDevices();
+            for (DiscoveredDevice d : discovered) {
+                if (!d.isPairing()) {
+                    String label = getString(R.string.discovery_tag) + " " + d.getAddress();
+                    if (!items.contains(label)) {
+                        items.add(label);
+                    }
+                }
+            }
+        }
         List<String> recents = historyManager.getRecentAddresses(5);
-        if (recents == null || recents.isEmpty()) {
+        if (recents != null) {
+            for (String r : recents) {
+                if (!items.contains(r)) {
+                    items.add(r);
+                }
+            }
+        }
+        if (items.isEmpty()) {
             etServerHost.setAdapter(null);
             return;
         }
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_dropdown_item_1line, recents) {
+        final List<String> finalItems = items;
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_dropdown_item_1line, finalItems) {
             @Override
             public android.widget.Filter getFilter() {
                 return new android.widget.Filter() {
                     @Override
                     protected FilterResults performFiltering(CharSequence constraint) {
                         FilterResults results = new FilterResults();
-                        results.values = recents;
-                        results.count = recents.size();
+                        results.values = finalItems;
+                        results.count = finalItems.size();
                         return results;
                     }
 
@@ -895,9 +1202,14 @@ public class MainActivity extends AppCompatActivity {
         etServerHost.setOnItemClickListener((parent, view, position, id) -> {
             String selected = (String) parent.getItemAtPosition(position);
             if (selected != null) {
-                etServerHost.setText(selected, false);
-                etServerHost.setSelection(selected.length());
-                prefs().edit().putString(PREF_SERVER_ADDRESS, selected).apply();
+                String clean = selected;
+                String tag = getString(R.string.discovery_tag);
+                if (clean.startsWith(tag)) {
+                    clean = clean.substring(tag.length()).trim();
+                }
+                etServerHost.setText(clean, false);
+                etServerHost.setSelection(clean.length());
+                prefs().edit().putString(PREF_SERVER_ADDRESS, clean).apply();
             }
         });
     }

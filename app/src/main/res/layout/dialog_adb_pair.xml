@@ -15,12 +15,45 @@
         android:textSize="14sp" />
 
     <TextView
-        android:layout_width="wrap_content"
+        android:id="@+id/tv_pair_auto_badge"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="@string/pair_dialog_host_label"
-        android:textColor="#666666"
-        android:textSize="12sp" />
+        android:layout_marginTop="8dp"
+        android:background="#E8F5E9"
+        android:padding="8dp"
+        android:text="@string/discovery_auto_detected_badge"
+        android:textColor="#2E7D32"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/pair_dialog_host_label"
+            android:textColor="#666666"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/btn_pair_scan_qr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="4dp"
+            android:text="@string/btn_scan_qr"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="12sp" />
+    </LinearLayout>
 
     <EditText
         android:id="@+id/et_pair_host"
