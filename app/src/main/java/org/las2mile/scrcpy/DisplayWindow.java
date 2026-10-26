@@ -162,13 +162,15 @@ public class DisplayWindow extends FrameLayout {
         }
 
         // ────────────────────────────────────────────────────────────────────────
-        // Corner resize handle (drag to scale & remember custom scale ratio)
+        // Corner resize handle (clean semi-transparent icon, drag to scale, tap passes through)
         // ────────────────────────────────────────────────────────────────────────
         if (resizeHandle != null) {
             resizeHandle.setOnTouchListener(new OnTouchListener() {
                 private float startRawX;
                 private float startRawY;
                 private int startW;
+                private boolean isDragging = false;
+                private long downTime = 0;
 
                 @Override
                 public boolean onTouch(View v, MotionEvent event) {
@@ -176,22 +178,63 @@ public class DisplayWindow extends FrameLayout {
                         case MotionEvent.ACTION_DOWN:
                             startRawX = event.getRawX();
                             startRawY = event.getRawY();
-                            startW = container.getWidth();
+                            startW = (container != null && container.getWidth() > 0) ? container.getWidth() : getWidth();
+                            isDragging = false;
+                            downTime = event.getEventTime();
+                            v.setAlpha(1.0f);
                             return true;
 
                         case MotionEvent.ACTION_MOVE:
                             float dx = event.getRawX() - startRawX;
                             float dy = event.getRawY() - startRawY;
-                            float delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
-                            int targetW = startW + (int) delta;
-                            applyConstrainedSize(targetW);
-
-                            // Remember custom scale ratio relative to local screen width
-                            int screenW = getScreenWidth();
-                            if (screenW > 0 && container != null && container.getWidth() > 0) {
-                                userScaleRatio = (float) container.getWidth() / (float) screenW;
-                                hasCustomScale = true;
+                            float totalDist = (float) Math.hypot(dx, dy);
+                            if (totalDist > touchSlop) {
+                                isDragging = true;
                             }
+                            if (isDragging) {
+                                float delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+                                int targetW = startW + (int) delta;
+                                applyConstrainedSize(targetW);
+
+                                // Remember custom scale ratio relative to local screen width
+                                int screenW = getScreenWidth();
+                                if (screenW > 0 && container != null && container.getWidth() > 0) {
+                                    userScaleRatio = (float) container.getWidth() / (float) screenW;
+                                    hasCustomScale = true;
+                                }
+                            }
+                            return true;
+
+                        case MotionEvent.ACTION_UP:
+                            v.setAlpha(0.55f);
+                            if (!isDragging) {
+                                // Tap pass-through to game/video underneath
+                                if (onDisplayTouchListener != null && surfaceView != null) {
+                                    int[] loc = new int[2];
+                                    surfaceView.getLocationOnScreen(loc);
+                                    float surfaceX = event.getRawX() - loc[0];
+                                    float surfaceY = event.getRawY() - loc[1];
+
+                                    MotionEvent downEv = MotionEvent.obtain(
+                                            downTime, downTime,
+                                            MotionEvent.ACTION_DOWN, surfaceX, surfaceY, 0);
+                                    MotionEvent upEv = MotionEvent.obtain(
+                                            downTime, event.getEventTime(),
+                                            MotionEvent.ACTION_UP, surfaceX, surfaceY, 0);
+
+                                    onDisplayTouchListener.onTouch(surfaceView, downEv);
+                                    onDisplayTouchListener.onTouch(surfaceView, upEv);
+
+                                    downEv.recycle();
+                                    upEv.recycle();
+                                }
+                            }
+                            isDragging = false;
+                            return true;
+
+                        case MotionEvent.ACTION_CANCEL:
+                            v.setAlpha(0.55f);
+                            isDragging = false;
                             return true;
                     }
                     return false;
@@ -252,7 +295,7 @@ public class DisplayWindow extends FrameLayout {
                     isMinimized = true;
                 } else {
                     container.setVisibility(View.VISIBLE);
-                    if (resizeHandle != null) resizeHandle.setVisibility(View.GONE);
+                    if (resizeHandle != null && !isAudioOnly) resizeHandle.setVisibility(View.VISIBLE);
                     if (isPinned && bottomPillScroll != null) bottomPillScroll.setVisibility(View.VISIBLE);
                     isMinimized = false;
                 }
@@ -387,7 +430,7 @@ public class DisplayWindow extends FrameLayout {
     public void expandControls() {
         if (isMinimized) {
             if (container != null) container.setVisibility(View.VISIBLE);
-            if (resizeHandle != null) resizeHandle.setVisibility(View.GONE);
+            if (resizeHandle != null && !isAudioOnly) resizeHandle.setVisibility(View.VISIBLE);
             isMinimized = false;
         }
         if (topPillScroll != null) topPillScroll.setVisibility(View.VISIBLE);
@@ -613,6 +656,9 @@ public class DisplayWindow extends FrameLayout {
         this.isAudioOnly = audioOnly;
         if (container != null) {
             container.setVisibility(audioOnly ? GONE : VISIBLE);
+        }
+        if (resizeHandle != null) {
+            resizeHandle.setVisibility(audioOnly ? GONE : VISIBLE);
         }
         applyCaptureButtonsVisibility();
     }
