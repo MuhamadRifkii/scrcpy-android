@@ -684,8 +684,8 @@ public class ScreenMirrorActivity extends Activity
         androidx.constraintlayout.widget.ConstraintSet cs = new androidx.constraintlayout.widget.ConstraintSet();
         cs.clone(cl);
         cs.setDimensionRatio(R.id.decoder_surface, ratio);
-        cs.setConstrainedWidth(R.id.decoder_surface, true);
-        cs.setConstrainedHeight(R.id.decoder_surface, true);
+        cs.constrainedWidth(R.id.decoder_surface, true);
+        cs.constrainedHeight(R.id.decoder_surface, true);
         cs.applyTo(cl);
 
         if (navBar != null) {

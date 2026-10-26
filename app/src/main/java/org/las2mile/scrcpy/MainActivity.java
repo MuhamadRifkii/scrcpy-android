@@ -490,8 +490,7 @@ public class MainActivity extends AppCompatActivity {
         final boolean  fAudioOnly   = switchAudioOnly != null && switchAudioOnly.isChecked();
         final boolean  fAudio       = fAudioOnly || switchAudio.isChecked();
         final boolean  fVideo       = !fAudioOnly;
-        final boolean  fAudioCodec  = false; // dummy
-        final String   fAudioCodecStr = getSelectedAudioCodec();
+        final String   fAudioCodec  = getSelectedAudioCodec();
         final boolean  fControl     = !switch0.isChecked();
         final boolean  fStayAwake   = switchStayAwake.isChecked();
         final boolean  fSyncRotation= switchSyncRotation.isChecked();
@@ -501,7 +500,7 @@ public class MainActivity extends AppCompatActivity {
 
         new Thread(() -> {
             int res = sendCommands.SendAdbCommands(this, fileBase64, fAddr, 7007,
-                    fBitrate, fMaxSize, fMaxFps, fVideoCodec, fAudio, fAudioCodecStr, fControl, fStayAwake, fVideo);
+                    fBitrate, fMaxSize, fMaxFps, fVideoCodec, fAudio, fAudioCodec, fControl, fStayAwake, fVideo);
             runOnUiThread(() -> {
                 dialog.dismiss();
                 if (btnStart != null) {
