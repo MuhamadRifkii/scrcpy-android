@@ -322,8 +322,31 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         lp.x = 40;
         lp.y = 120;
 
-        displayWindow.setOnWindowResizeListener((width, height) -> {
+        displayWindow.setOnWindowResizeListener((width, height, mode) -> {
             if (lp != null) {
+                WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+                int screenH = 1920;
+                if (wm != null) {
+                    DisplayMetrics dm = new DisplayMetrics();
+                    wm.getDefaultDisplay().getRealMetrics(dm);
+                    screenH = dm.heightPixels;
+                }
+                if (mode == DisplayWindow.ResizeMode.MINIMIZE) {
+                    int currentW = (lp.width > 0) ? lp.width : displayWindow.getWidth();
+                    int winCenterX = lp.x + (currentW / 2);
+                    lp.x = winCenterX - (width / 2);
+                } else if (mode == DisplayWindow.ResizeMode.RESTORE) {
+                    int currentPillW = (lp.width > 0) ? lp.width : dpToPx(DisplayWindow.PILL_WIDTH_DP);
+                    int currentPillH = (lp.height > 0) ? lp.height : dpToPx(DisplayWindow.PILL_HEIGHT_DP);
+                    int pillCenterX = lp.x + (currentPillW / 2);
+                    int pillCenterY = lp.y + (currentPillH / 2);
+                    lp.x = pillCenterX - (width / 2);
+                    if (pillCenterY < screenH / 2) {
+                        lp.y = lp.y;
+                    } else {
+                        lp.y = pillCenterY - (height / 2);
+                    }
+                }
                 lp.width = width;
                 lp.height = height;
                 clampWindowPositionToScreen();
@@ -448,6 +471,10 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
                 windowManager.updateViewLayout(displayWindow, lp);
             }
         } catch (Exception ignored) {}
+    }
+
+    private int dpToPx(int dp) {
+        return (int) (dp * getResources().getDisplayMetrics().density + 0.5f);
     }
 
     // ────────────────────────────────────────────────────────────────────────

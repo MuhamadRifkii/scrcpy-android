@@ -16,6 +16,8 @@ import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.view.WindowManager;
+import android.view.animation.AccelerateInterpolator;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -33,8 +35,14 @@ public class DisplayWindow extends FrameLayout {
     public static final int ACTION_SCREENSHOT = 7;
     public static final int ACTION_RECORD_TOGGLE = 8;
 
+    public enum ResizeMode {
+        NORMAL,
+        MINIMIZE,
+        RESTORE
+    }
+
     public interface OnWindowResizeListener {
-        void onWindowResize(int width, int height);
+        void onWindowResize(int width, int height, ResizeMode mode);
     }
     private OnWindowResizeListener onWindowResizeListener;
 
@@ -48,6 +56,9 @@ public class DisplayWindow extends FrameLayout {
     private OnTouchListener onDisplayTouchListener;
     private SurfaceReadyCallback surfaceReadyCallback;
 
+    public static final int PILL_WIDTH_DP = 64;
+    public static final int PILL_HEIGHT_DP = 30;
+
     private float oldX;
     private float oldY;
     private float touchDownX;
@@ -56,6 +67,7 @@ public class DisplayWindow extends FrameLayout {
 
     private ViewGroup container;
     private SurfaceView surfaceView;
+    private View topOverlay;
     private View handleDots;
     private View topPillScroll;
     private View bottomPillScroll;
@@ -71,6 +83,10 @@ public class DisplayWindow extends FrameLayout {
     private boolean captureButtonsEnabled = true;
     private boolean isPinned = false;
     private boolean isMinimized = false;
+    private boolean isAnimating = false;
+
+    private int lastExpandedW = 0;
+    private int lastExpandedH = 0;
 
     // Preserved scale factor across rotations
     private float userScaleRatio = 0.52f;
@@ -101,6 +117,7 @@ public class DisplayWindow extends FrameLayout {
         container = findViewById(R.id.container);
         surfaceView = findViewById(R.id.surface);
         hintLayout = findViewById(R.id.hint_layout);
+        topOverlay = findViewById(R.id.top_overlay);
         handleDots = findViewById(R.id.handle_dots);
         topPillScroll = findViewById(R.id.top_pill_scroll);
         bottomPillScroll = findViewById(R.id.bottom_pill_scroll);
@@ -110,10 +127,21 @@ public class DisplayWindow extends FrameLayout {
 
         // Clip container to rounded corners (Xiaomi style rounded floating window)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            if (container != null) {
+                container.setOutlineProvider(new ViewOutlineProvider() {
+                    @Override
+                    public void getOutline(View view, Outline outline) {
+                        outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), dpToPx(14));
+                    }
+                });
+                container.setClipToOutline(true);
+            }
+
             setOutlineProvider(new ViewOutlineProvider() {
                 @Override
                 public void getOutline(View view, Outline outline) {
-                    outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), dpToPx(14));
+                    int radius = isMinimized ? dpToPx(PILL_HEIGHT_DP / 2) : dpToPx(14);
+                    outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radius);
                 }
             });
             setClipToOutline(true);
@@ -126,6 +154,7 @@ public class DisplayWindow extends FrameLayout {
         // ────────────────────────────────────────────────────────────────────────
         if (handleDots != null) {
             handleDots.setOnTouchListener((view, motionEvent) -> {
+                if (isAnimating) return true;
                 final int action = motionEvent.getActionMasked();
                 switch (action) {
                     case MotionEvent.ACTION_DOWN:
@@ -152,8 +181,16 @@ public class DisplayWindow extends FrameLayout {
 
                     case MotionEvent.ACTION_UP:
                         if (!isDraggingHandle) {
-                            toggleControls();
+                            if (isMinimized) {
+                                restoreWindow();
+                            } else {
+                                toggleControls();
+                            }
                         }
+                        isDraggingHandle = false;
+                        return true;
+
+                    case MotionEvent.ACTION_CANCEL:
                         isDraggingHandle = false;
                         return true;
                 }
@@ -287,17 +324,10 @@ public class DisplayWindow extends FrameLayout {
         View miniBtn = findViewById(R.id.iv_mini);
         if (miniBtn != null) {
             miniBtn.setOnClickListener(v -> {
-                if (container.getVisibility() == View.VISIBLE) {
-                    container.setVisibility(View.GONE);
-                    collapseControls();
-                    if (resizeHandle != null) resizeHandle.setVisibility(View.GONE);
-                    if (bottomPillScroll != null) bottomPillScroll.setVisibility(View.GONE);
-                    isMinimized = true;
+                if (isMinimized) {
+                    restoreWindow();
                 } else {
-                    container.setVisibility(View.VISIBLE);
-                    if (resizeHandle != null && !isAudioOnly) resizeHandle.setVisibility(View.VISIBLE);
-                    if (isPinned && bottomPillScroll != null) bottomPillScroll.setVisibility(View.VISIBLE);
-                    isMinimized = false;
+                    minimizeWindow();
                 }
             });
         }
@@ -427,11 +457,183 @@ public class DisplayWindow extends FrameLayout {
         }
     }
 
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (isMinimized) {
+            if (event.getActionMasked() == MotionEvent.ACTION_UP && !isAnimating) {
+                restoreWindow();
+                return true;
+            }
+            return true;
+        }
+        return super.onTouchEvent(event);
+    }
+
+    public boolean isMinimized() {
+        return isMinimized;
+    }
+
+    public void minimizeWindow() {
+        if (isMinimized || isAnimating) return;
+        isAnimating = true;
+        isMinimized = true;
+
+        if (container != null && container.getWidth() > 0) {
+            lastExpandedW = container.getWidth();
+            lastExpandedH = container.getHeight();
+        } else if (lastExpandedW <= 0) {
+            int screenW = getScreenWidth();
+            lastExpandedW = (int) (screenW * userScaleRatio);
+            float aspect = (remoteW > 0 && remoteH > 0) ? ((float) remoteW / (float) remoteH) : (9f / 16f);
+            lastExpandedH = (int) (lastExpandedW / aspect);
+        }
+
+        collapseControls();
+        if (resizeHandle != null) {
+            resizeHandle.setVisibility(View.GONE);
+        }
+        if (bottomPillScroll != null) {
+            bottomPillScroll.setVisibility(View.GONE);
+        }
+
+        if (handleDots != null) {
+            handleDots.setBackgroundResource(R.drawable.bg_floating_pill);
+        }
+        setBackground(null);
+
+        final int pillW = dpToPx(PILL_WIDTH_DP);
+        final int pillH = dpToPx(PILL_HEIGHT_DP);
+
+        if (container != null) {
+            container.setPivotX(container.getWidth() / 2f);
+            container.setPivotY(0f);
+            container.animate()
+                    .scaleX(0.06f)
+                    .scaleY(0.06f)
+                    .alpha(0.0f)
+                    .setDuration(220)
+                    .setInterpolator(new AccelerateInterpolator(1.5f))
+                    .withEndAction(() -> {
+                        container.setVisibility(View.GONE);
+                        container.setScaleX(1.0f);
+                        container.setScaleY(1.0f);
+                        container.setAlpha(1.0f);
+
+                        if (topOverlay != null) {
+                            topOverlay.setPadding(0, 0, 0, 0);
+                        }
+
+                        ViewGroup.LayoutParams rlp = getLayoutParams();
+                        if (rlp != null) {
+                            rlp.width = pillW;
+                            rlp.height = pillH;
+                            setLayoutParams(rlp);
+                        }
+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            invalidateOutline();
+                        }
+
+                        if (onWindowResizeListener != null) {
+                            onWindowResizeListener.onWindowResize(pillW, pillH, ResizeMode.MINIMIZE);
+                        }
+                        isAnimating = false;
+                    })
+                    .start();
+        } else {
+            if (topOverlay != null) {
+                topOverlay.setPadding(0, 0, 0, 0);
+            }
+            if (onWindowResizeListener != null) {
+                onWindowResizeListener.onWindowResize(pillW, pillH, ResizeMode.MINIMIZE);
+            }
+            isAnimating = false;
+        }
+    }
+
+    public void restoreWindow() {
+        if (!isMinimized || isAnimating) return;
+        isAnimating = true;
+        isMinimized = false;
+
+        final int targetW = (lastExpandedW > 0) ? lastExpandedW : dpToPx(280);
+        final int targetH = (lastExpandedH > 0) ? lastExpandedH : dpToPx(160);
+
+        if (topOverlay != null) {
+            topOverlay.setPadding(dpToPx(4), dpToPx(5), dpToPx(4), 0);
+        }
+
+        ViewGroup.LayoutParams rlp = getLayoutParams();
+        if (rlp != null) {
+            rlp.width = targetW;
+            rlp.height = targetH;
+            setLayoutParams(rlp);
+        }
+
+        if (container != null) {
+            ViewGroup.LayoutParams clp = container.getLayoutParams();
+            if (clp != null) {
+                clp.width = targetW;
+                clp.height = targetH;
+                container.setLayoutParams(clp);
+            }
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            invalidateOutline();
+        }
+
+        if (onWindowResizeListener != null) {
+            onWindowResizeListener.onWindowResize(targetW, targetH, ResizeMode.RESTORE);
+        }
+
+        if (container != null) {
+            container.setVisibility(View.VISIBLE);
+            container.setPivotX(targetW / 2f);
+            container.setPivotY(0f);
+            container.setScaleX(0.10f);
+            container.setScaleY(0.10f);
+            container.setAlpha(0.0f);
+
+            container.animate()
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .alpha(1.0f)
+                    .setDuration(250)
+                    .setInterpolator(new DecelerateInterpolator(1.5f))
+                    .withEndAction(() -> {
+                        container.setScaleX(1.0f);
+                        container.setScaleY(1.0f);
+                        container.setAlpha(1.0f);
+
+                        setBackgroundResource(R.drawable.bg_floating_window);
+                        if (handleDots != null) {
+                            handleDots.setBackground(null);
+                        }
+
+                        if (resizeHandle != null && !isAudioOnly) {
+                            resizeHandle.setVisibility(View.VISIBLE);
+                            resizeHandle.setAlpha(0.55f);
+                        }
+                        if (isPinned && bottomPillScroll != null) {
+                            bottomPillScroll.setVisibility(View.VISIBLE);
+                        }
+                        isAnimating = false;
+                    })
+                    .start();
+        } else {
+            setBackgroundResource(R.drawable.bg_floating_window);
+            if (handleDots != null) {
+                handleDots.setBackground(null);
+            }
+            isAnimating = false;
+        }
+    }
+
     public void expandControls() {
         if (isMinimized) {
-            if (container != null) container.setVisibility(View.VISIBLE);
-            if (resizeHandle != null && !isAudioOnly) resizeHandle.setVisibility(View.VISIBLE);
-            isMinimized = false;
+            restoreWindow();
+            return;
         }
         if (topPillScroll != null) topPillScroll.setVisibility(View.VISIBLE);
         if (bottomPillScroll != null) bottomPillScroll.setVisibility(View.VISIBLE);
@@ -567,6 +769,16 @@ public class DisplayWindow extends FrameLayout {
             clampedW = Math.max(minW, (int) (clampedH * aspect));
         }
 
+        lastExpandedW = clampedW;
+        lastExpandedH = clampedH;
+
+        if (isMinimized) {
+            if (onWindowResizeListener != null) {
+                onWindowResizeListener.onWindowResize(dpToPx(PILL_WIDTH_DP), dpToPx(PILL_HEIGHT_DP), ResizeMode.MINIMIZE);
+            }
+            return;
+        }
+
         ViewGroup.LayoutParams lp = container.getLayoutParams();
         if (lp != null) {
             lp.width = clampedW;
@@ -588,7 +800,7 @@ public class DisplayWindow extends FrameLayout {
         }
 
         if (onWindowResizeListener != null) {
-            onWindowResizeListener.onWindowResize(clampedW, clampedH);
+            onWindowResizeListener.onWindowResize(clampedW, clampedH, ResizeMode.NORMAL);
         }
     }
 

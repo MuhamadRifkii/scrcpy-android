@@ -60,13 +60,15 @@
             android:id="@+id/handle_dots"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:minWidth="60dp"
+            android:minHeight="28dp"
             android:clickable="true"
             android:focusable="true"
             android:gravity="center"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
             android:paddingTop="4dp"
-            android:paddingBottom="6dp">
+            android:paddingBottom="4dp">
 
             <ImageView
                 android:layout_width="28dp"
