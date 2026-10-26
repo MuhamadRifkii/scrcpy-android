@@ -1,109 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/root_layout"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:background="@drawable/bg_floating_window"
-    android:orientation="vertical">
+    android:background="@drawable/bg_floating_window">
 
-    <!-- Draggable Header -->
-    <LinearLayout
-        android:id="@+id/header"
-        android:layout_width="match_parent"
-        android:layout_height="34dp"
-        android:background="@drawable/bg_floating_header"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="10dp"
-        android:paddingEnd="6dp">
-
-        <TextView
-            android:id="@+id/tv_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/app_name"
-            android:textColor="#E0E0E0"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-
-        <Space
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
-
-        <!-- Screenshot button -->
-        <ImageView
-            android:id="@+id/iv_screenshot"
-            android:layout_width="28dp"
-            android:layout_height="match_parent"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
-            android:background="@drawable/bg_btn_ripple"
-            android:src="@drawable/ic_screenshot"
-            android:contentDescription="@string/btn_screenshot" />
-
-        <!-- Record button (shown when not recording) -->
-        <ImageView
-            android:id="@+id/iv_record"
-            android:layout_width="28dp"
-            android:layout_height="match_parent"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
-            android:background="@drawable/bg_btn_ripple"
-            android:src="@drawable/ic_record"
-            android:contentDescription="@string/btn_record"
-            android:visibility="visible" />
-
-        <!-- Record timer (shown while recording, replaces record button) -->
-        <TextView
-            android:id="@+id/tv_record_timer"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:paddingStart="4dp"
-            android:paddingEnd="4dp"
-            android:textColor="#FF4444"
-            android:textSize="10sp"
-            android:textStyle="bold"
-            android:text="00:00"
-            android:visibility="gone"
-            android:background="@drawable/bg_btn_ripple" />
-
-        <!-- Quick rotate remote device -->
-        <ImageView
-            android:id="@+id/iv_rotate"
-            android:layout_width="28dp"
-            android:layout_height="match_parent"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
-            android:background="@drawable/bg_btn_ripple"
-            android:src="@drawable/ic_nav_rotate"
-            android:contentDescription="@string/rotate_button" />
-
-        <!-- Minimize / collapse video -->
-        <ImageView
-            android:id="@+id/iv_mini"
-            android:layout_width="28dp"
-            android:layout_height="match_parent"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
-            android:background="@drawable/bg_btn_ripple"
-            android:src="@drawable/ic_minimize"
-            android:contentDescription="Minimize" />
-
-        <!-- Close floating window -->
-        <ImageView
-            android:id="@+id/iv_close"
-            android:layout_width="28dp"
-            android:layout_height="match_parent"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
-            android:background="@drawable/bg_btn_ripple"
-            android:src="@drawable/ic_close_small"
-            android:contentDescription="Close" />
-    </LinearLayout>
-
-    <!-- Video & Surface Container -->
+    <!-- Video & Surface Container (100% full bleed inside rounded window) -->
     <FrameLayout
         android:id="@+id/container"
         android:layout_width="wrap_content"
@@ -141,95 +43,275 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Action Bar & Resize Handle -->
+    <!-- Top Overlay (Xiaomi Style Handle & Pop-out Action Pill) -->
     <LinearLayout
-        android:id="@+id/actionbar"
+        android:id="@+id/top_overlay"
         android:layout_width="match_parent"
-        android:layout_height="36dp"
-        android:background="@drawable/bg_floating_actionbar"
-        android:gravity="center"
-        android:orientation="horizontal">
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingTop="5dp"
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp">
 
-        <Space
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
+        <!-- Minimal 3-dots handle (Drag to move, Tap to toggle controls) -->
+        <LinearLayout
+            android:id="@+id/handle_dots"
+            android:layout_width="wrap_content"
+            android:layout_height="18dp"
+            android:background="@drawable/bg_floating_handle"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp">
 
-        <ImageView
-            android:id="@+id/action_power"
-            android:layout_width="34dp"
-            android:layout_height="match_parent"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
-            android:background="@drawable/bg_btn_ripple"
-            android:src="@drawable/ic_nav_power"
-            android:contentDescription="@string/power_button" />
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="12dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_drag_handle_dots"
+                android:contentDescription="Handle" />
+        </LinearLayout>
 
-        <ImageView
-            android:id="@+id/action_back"
-            android:layout_width="34dp"
-            android:layout_height="match_parent"
-            android:padding="7dp"
-            android:scaleType="fitCenter"
-            android:background="@drawable/bg_btn_ripple"
-            android:src="@drawable/ic_nav_back"
-            android:contentDescription="@string/back_button" />
+        <!-- Pop-out Top Action Pill (Xiaomi Style) -->
+        <HorizontalScrollView
+            android:id="@+id/top_pill_scroll"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:scrollbars="none"
+            android:overScrollMode="never"
+            android:visibility="gone">
 
-        <ImageView
-            android:id="@+id/action_home"
-            android:layout_width="34dp"
-            android:layout_height="match_parent"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
-            android:background="@drawable/bg_btn_ripple"
-            android:src="@drawable/ic_nav_home"
-            android:contentDescription="@string/home_button" />
+            <LinearLayout
+                android:id="@+id/top_pill"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:background="@drawable/bg_floating_pill"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp">
 
-        <ImageView
-            android:id="@+id/action_menu"
-            android:layout_width="34dp"
-            android:layout_height="match_parent"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
-            android:background="@drawable/bg_btn_ripple"
-            android:src="@drawable/ic_nav_tasks"
-            android:contentDescription="@string/appswitch_button" />
+                <!-- Connected Device Title (optional compact label) -->
+                <TextView
+                    android:id="@+id/tv_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxWidth="80dp"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="6dp"
+                    android:text="@string/app_name"
+                    android:textColor="#B0BEC5"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
 
-        <ImageView
-            android:id="@+id/action_vol_down"
-            android:layout_width="34dp"
-            android:layout_height="match_parent"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
-            android:background="@drawable/bg_btn_ripple"
-            android:src="@drawable/ic_nav_vol_down"
-            android:contentDescription="@string/voldown_button" />
+                <!-- Fullscreen button -->
+                <ImageView
+                    android:id="@+id/iv_fullscreen"
+                    android:layout_width="32dp"
+                    android:layout_height="match_parent"
+                    android:padding="6dp"
+                    android:scaleType="fitCenter"
+                    android:background="@drawable/bg_btn_ripple"
+                    android:src="@drawable/ic_nav_fullscreen"
+                    android:contentDescription="@string/btn_start_fullscreen" />
 
-        <ImageView
-            android:id="@+id/action_vol_up"
-            android:layout_width="34dp"
-            android:layout_height="match_parent"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
-            android:background="@drawable/bg_btn_ripple"
-            android:src="@drawable/ic_nav_vol_up"
-            android:contentDescription="@string/volup_button" />
+                <!-- Rotate button -->
+                <ImageView
+                    android:id="@+id/iv_rotate"
+                    android:layout_width="32dp"
+                    android:layout_height="match_parent"
+                    android:padding="6dp"
+                    android:scaleType="fitCenter"
+                    android:background="@drawable/bg_btn_ripple"
+                    android:src="@drawable/ic_nav_rotate"
+                    android:contentDescription="@string/rotate_button" />
 
-        <Space
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
+                <!-- Screenshot button -->
+                <ImageView
+                    android:id="@+id/iv_screenshot"
+                    android:layout_width="32dp"
+                    android:layout_height="match_parent"
+                    android:padding="6dp"
+                    android:scaleType="fitCenter"
+                    android:background="@drawable/bg_btn_ripple"
+                    android:src="@drawable/ic_screenshot"
+                    android:contentDescription="@string/btn_screenshot" />
 
-        <!-- Drag handle to resize window -->
-        <ImageView
-            android:id="@+id/iv_resize"
-            android:layout_width="30dp"
-            android:layout_height="match_parent"
-            android:padding="7dp"
-            android:scaleType="fitCenter"
-            android:background="@drawable/bg_btn_ripple"
-            android:src="@drawable/ic_nav_resize"
-            android:contentDescription="Resize" />
+                <!-- Record button -->
+                <ImageView
+                    android:id="@+id/iv_record"
+                    android:layout_width="32dp"
+                    android:layout_height="match_parent"
+                    android:padding="6dp"
+                    android:scaleType="fitCenter"
+                    android:background="@drawable/bg_btn_ripple"
+                    android:src="@drawable/ic_record"
+                    android:contentDescription="@string/btn_record" />
+
+                <!-- Record timer -->
+                <TextView
+                    android:id="@+id/tv_record_timer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp"
+                    android:textColor="#FF4444"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:text="00:00"
+                    android:visibility="gone"
+                    android:background="@drawable/bg_btn_ripple" />
+
+                <!-- Minimize / Collapse -->
+                <ImageView
+                    android:id="@+id/iv_mini"
+                    android:layout_width="32dp"
+                    android:layout_height="match_parent"
+                    android:padding="6dp"
+                    android:scaleType="fitCenter"
+                    android:background="@drawable/bg_btn_ripple"
+                    android:src="@drawable/ic_minimize"
+                    android:contentDescription="Minimize" />
+
+                <!-- Close floating window -->
+                <ImageView
+                    android:id="@+id/iv_close"
+                    android:layout_width="32dp"
+                    android:layout_height="match_parent"
+                    android:padding="6dp"
+                    android:scaleType="fitCenter"
+                    android:background="@drawable/bg_btn_ripple"
+                    android:src="@drawable/ic_close_small"
+                    android:contentDescription="Close" />
+            </LinearLayout>
+        </HorizontalScrollView>
     </LinearLayout>
 
-</LinearLayout>
+    <!-- Bottom Navigation Bar Overlay (Xiaomi Style Floating Nav Pill) -->
+    <LinearLayout
+        android:id="@+id/bottom_nav_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingBottom="6dp"
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp">
+
+        <HorizontalScrollView
+            android:id="@+id/bottom_pill_scroll"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:overScrollMode="never"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/bottom_pill"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:background="@drawable/bg_floating_pill"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp">
+
+                <ImageView
+                    android:id="@+id/action_power"
+                    android:layout_width="32dp"
+                    android:layout_height="match_parent"
+                    android:padding="6dp"
+                    android:scaleType="fitCenter"
+                    android:background="@drawable/bg_btn_ripple"
+                    android:src="@drawable/ic_nav_power"
+                    android:contentDescription="@string/power_button" />
+
+                <ImageView
+                    android:id="@+id/action_back"
+                    android:layout_width="32dp"
+                    android:layout_height="match_parent"
+                    android:padding="7dp"
+                    android:scaleType="fitCenter"
+                    android:background="@drawable/bg_btn_ripple"
+                    android:src="@drawable/ic_nav_back"
+                    android:contentDescription="@string/back_button" />
+
+                <ImageView
+                    android:id="@+id/action_home"
+                    android:layout_width="32dp"
+                    android:layout_height="match_parent"
+                    android:padding="6dp"
+                    android:scaleType="fitCenter"
+                    android:background="@drawable/bg_btn_ripple"
+                    android:src="@drawable/ic_nav_home"
+                    android:contentDescription="@string/home_button" />
+
+                <ImageView
+                    android:id="@+id/action_menu"
+                    android:layout_width="32dp"
+                    android:layout_height="match_parent"
+                    android:padding="6dp"
+                    android:scaleType="fitCenter"
+                    android:background="@drawable/bg_btn_ripple"
+                    android:src="@drawable/ic_nav_tasks"
+                    android:contentDescription="@string/appswitch_button" />
+
+                <ImageView
+                    android:id="@+id/action_vol_down"
+                    android:layout_width="32dp"
+                    android:layout_height="match_parent"
+                    android:padding="6dp"
+                    android:scaleType="fitCenter"
+                    android:background="@drawable/bg_btn_ripple"
+                    android:src="@drawable/ic_nav_vol_down"
+                    android:contentDescription="@string/voldown_button" />
+
+                <ImageView
+                    android:id="@+id/action_vol_up"
+                    android:layout_width="32dp"
+                    android:layout_height="match_parent"
+                    android:padding="6dp"
+                    android:scaleType="fitCenter"
+                    android:background="@drawable/bg_btn_ripple"
+                    android:src="@drawable/ic_nav_vol_up"
+                    android:contentDescription="@string/volup_button" />
+
+                <!-- Pin toggle button -->
+                <ImageView
+                    android:id="@+id/action_pin"
+                    android:layout_width="32dp"
+                    android:layout_height="match_parent"
+                    android:padding="7dp"
+                    android:scaleType="fitCenter"
+                    android:background="@drawable/bg_btn_ripple"
+                    android:src="@drawable/ic_nav_pin"
+                    android:alpha="0.45"
+                    android:contentDescription="Pin Navigation" />
+            </LinearLayout>
+        </HorizontalScrollView>
+    </LinearLayout>
+
+    <!-- Corner Drag-to-Resize Handle -->
+    <ImageView
+        android:id="@+id/iv_resize"
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="6dp"
+        android:layout_marginBottom="6dp"
+        android:padding="5dp"
+        android:scaleType="fitCenter"
+        android:background="@drawable/bg_floating_resize"
+        android:src="@drawable/ic_nav_resize"
+        android:contentDescription="Resize" />
+
+</FrameLayout>

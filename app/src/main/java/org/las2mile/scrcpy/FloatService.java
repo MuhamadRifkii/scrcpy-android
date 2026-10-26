@@ -3,6 +3,7 @@ package org.las2mile.scrcpy;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -18,12 +19,14 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.Surface;
 import android.view.SurfaceView;
 import android.view.WindowManager;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.core.app.NotificationCompat;
@@ -32,6 +35,10 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
     private static final String TAG = "FloatService";
     private static final String CHANNEL_ID = "scrcpy_floating_service";
     private static final int NOTIFICATION_ID = 1001;
+
+    public static final String ACTION_STOP = "org.las2mile.scrcpy.action.STOP";
+    public static final String ACTION_VOL_DOWN = "org.las2mile.scrcpy.action.VOL_DOWN";
+    public static final String ACTION_VOL_UP = "org.las2mile.scrcpy.action.VOL_UP";
 
     private DisplayWindow displayWindow;
     private WindowManager windowManager;
@@ -87,22 +94,22 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
                             stopSelf();
                         } else {
                             if (screenOff && scrcpy != null) {
-                                // Screen Off Mirror: turn off the controlled device's
-                                // display now that the mirror connection is up
                                 scrcpy.setDisplayPower(false);
                             }
-                            if (displayWindow != null) {
+                            if (audioOnly) {
+                                String dev = (scrcpy != null) ? scrcpy.getDeviceName() : null;
+                                String title = (dev != null && !dev.isEmpty()) ? dev : getString(R.string.title_remote_speaker);
+                                updateNotification(title, "Remote Speaker active");
+                            } else if (displayWindow != null) {
                                 displayWindow.hideHintTip();
-                                if (!audioOnly && scrcpy != null) {
+                                if (scrcpy != null) {
                                     int[] res = scrcpy.get_remote_device_resolution();
                                     if (res != null && res.length >= 2 && res[0] > 0 && res[1] > 0) {
                                         displayWindow.setRemote(res[0], res[1]);
                                     }
-                                }
-                                if (scrcpy != null) {
                                     String dev = scrcpy.getDeviceName();
                                     if (dev != null && !dev.isEmpty()) {
-                                        android.widget.TextView tvTitle = displayWindow.findViewById(R.id.tv_title);
+                                        TextView tvTitle = displayWindow.findViewById(R.id.tv_title);
                                         if (tvTitle != null) {
                                             tvTitle.setText(dev);
                                         }
@@ -141,7 +148,6 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
     public void onCreate() {
         super.onCreate();
         promoteToForeground();
-        setupDisplay();
 
         // Register USB detach listener
         IntentFilter usbFilter = new IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED);
@@ -156,24 +162,66 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "scrcpy Floating Window",
+                    "scrcpy Service",
                     NotificationManager.IMPORTANCE_LOW
             );
-            channel.setDescription("Running screen mirroring in floating window");
+            channel.setDescription("Running screen mirroring or audio playback in background");
             NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm != null) {
                 nm.createNotificationChannel(channel);
             }
         }
+        updateNotification(getString(R.string.app_name), getString(R.string.btn_start_float));
+    }
 
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle(getString(R.string.app_name))
-                .setContentText(getString(R.string.btn_start_float))
+    private void updateNotification(String title, String content) {
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle(title != null ? title : getString(R.string.app_name))
+                .setContentText(content != null ? content : getString(R.string.btn_start_float))
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setOngoing(true)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .build();
+                .setPriority(NotificationCompat.PRIORITY_LOW);
 
+        int pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            pendingFlags |= PendingIntent.FLAG_IMMUTABLE;
+        }
+
+        // Stop / Disconnect action
+        Intent stopIntent = new Intent(this, FloatService.class);
+        stopIntent.setAction(ACTION_STOP);
+        PendingIntent pStop = PendingIntent.getService(this, 1, stopIntent, pendingFlags);
+        builder.addAction(new NotificationCompat.Action.Builder(
+                R.drawable.ic_close_small,
+                "Disconnect",
+                pStop
+        ).build());
+
+        if (audioOnly) {
+            // Volume Down action
+            Intent vDownIntent = new Intent(this, FloatService.class);
+            vDownIntent.setAction(ACTION_VOL_DOWN);
+            PendingIntent pVDown = PendingIntent.getService(this, 2, vDownIntent, pendingFlags);
+            builder.addAction(new NotificationCompat.Action.Builder(
+                    R.drawable.ic_nav_vol_down,
+                    "Vol -",
+                    pVDown
+            ).build());
+
+            // Volume Up action
+            Intent vUpIntent = new Intent(this, FloatService.class);
+            vUpIntent.setAction(ACTION_VOL_UP);
+            PendingIntent pVUp = PendingIntent.getService(this, 3, vUpIntent, pendingFlags);
+            builder.addAction(new NotificationCompat.Action.Builder(
+                    R.drawable.ic_nav_vol_up,
+                    "Vol +",
+                    pVUp
+            ).build());
+        }
+
+        Notification notification = builder.build();
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE);
@@ -181,11 +229,10 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
                 startForeground(NOTIFICATION_ID, notification);
             }
         } catch (Exception e) {
-            Log.w(TAG, "startForeground with connectedDevice failed, retrying without type: " + e.getMessage());
             try {
                 startForeground(NOTIFICATION_ID, notification);
             } catch (Exception fatal) {
-                Log.e(TAG, "Failed to start foreground service", fatal);
+                if (nm != null) nm.notify(NOTIFICATION_ID, notification);
             }
         }
     }
@@ -194,6 +241,19 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null) {
             return super.onStartCommand(intent, flags, startId);
+        }
+
+        String action = intent.getAction();
+        if (ACTION_STOP.equals(action)) {
+            Log.d(TAG, "Notification Disconnect action received");
+            stopSelf();
+            return START_NOT_STICKY;
+        } else if (ACTION_VOL_DOWN.equals(action)) {
+            if (scrcpy != null) scrcpy.sendKeyevent(KeyEvent.KEYCODE_VOLUME_DOWN);
+            return START_NOT_STICKY;
+        } else if (ACTION_VOL_UP.equals(action)) {
+            if (scrcpy != null) scrcpy.sendKeyevent(KeyEvent.KEYCODE_VOLUME_UP);
+            return START_NOT_STICKY;
         }
 
         serverAdr = intent.getStringExtra("ip");
@@ -210,22 +270,24 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         noControl = intent.getBooleanExtra("no_control", false);
         screenOff = intent.getBooleanExtra("screen_off", false);
 
-        Log.d(TAG, "onStartCommand: server=" + serverAdr + ":" + serverPort + ", audioOnly=" + audioOnly + ", size=" + screenWidth + "x" + screenHeight);
-        if (displayWindow != null) {
-            displayWindow.setCaptureButtonsEnabled(captureButtons);
-            if (audioOnly) {
-                displayWindow.setAudioOnlyMode(true);
-                if (lp != null && windowManager != null) {
-                    int speakerWidth = (int) (220 * getResources().getDisplayMetrics().density);
-                    lp.width = speakerWidth;
-                    lp.height = WindowManager.LayoutParams.WRAP_CONTENT;
-                    try {
-                        windowManager.updateViewLayout(displayWindow, lp);
-                    } catch (Exception ignored) {}
-                }
-            } else {
-                displayWindow.setRemote(screenWidth, screenHeight);
+        Log.d(TAG, "onStartCommand: server=" + serverAdr + ":" + serverPort + ", audioOnly=" + audioOnly);
+
+        if (!audioOnly) {
+            if (displayWindow == null) {
+                setupDisplay();
             }
+            displayWindow.setCaptureButtonsEnabled(captureButtons);
+            displayWindow.setRemote(screenWidth, screenHeight);
+            updateNotification(getString(R.string.app_name), getString(R.string.btn_start_float));
+        } else {
+            // Audio-only: do not add or display floating window
+            if (displayWindow != null && windowManager != null) {
+                try {
+                    windowManager.removeView(displayWindow);
+                } catch (Exception ignored) {}
+                displayWindow = null;
+            }
+            updateNotification(getString(R.string.title_remote_speaker), "Remote Speaker active");
         }
 
         boolean canStart = (audioOnly || (surface != null && surface.isValid())) && serverAdr != null && !serverAdr.isEmpty();
@@ -279,6 +341,9 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
 
         displayWindow.setActionCallback(actionType -> {
             switch (actionType) {
+                case DisplayWindow.ACTION_FULLSCREEN:
+                    switchToFullscreen();
+                    break;
                 case DisplayWindow.ACTION_POWER:
                     if (scrcpy != null) scrcpy.sendKeyevent(KeyEvent.KEYCODE_POWER);
                     break;
@@ -335,6 +400,22 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         });
     }
 
+    private void switchToFullscreen() {
+        Intent mirrorIntent = new Intent(FloatService.this, ScreenMirrorActivity.class);
+        mirrorIntent.putExtra("ip", serverAdr);
+        mirrorIntent.putExtra("port", serverPort);
+        mirrorIntent.putExtra("width", screenWidth);
+        mirrorIntent.putExtra("height", screenHeight);
+        mirrorIntent.putExtra("audio", audioEnabled);
+        mirrorIntent.putExtra("audio_only", audioOnly);
+        mirrorIntent.putExtra("capture_buttons", captureButtons);
+        mirrorIntent.putExtra("no_control", noControl);
+        mirrorIntent.putExtra("screen_off", screenOff);
+        mirrorIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(mirrorIntent);
+        stopSelf();
+    }
+
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
@@ -342,9 +423,31 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         if (displayWindow != null && scrcpy != null) {
             int[] res = scrcpy.get_remote_device_resolution();
             if (res != null && res.length >= 2 && res[0] > 0 && res[1] > 0) {
-                displayWindow.setRemote(res[0], res[1]);
+                displayWindow.onLocalConfigurationChanged(res[0], res[1]);
             }
+            clampWindowPositionToScreen();
         }
+    }
+
+    private void clampWindowPositionToScreen() {
+        if (windowManager == null || displayWindow == null || lp == null) return;
+        WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+        if (wm == null) return;
+        DisplayMetrics dm = new DisplayMetrics();
+        wm.getDefaultDisplay().getRealMetrics(dm);
+        int screenW = dm.widthPixels;
+        int screenH = dm.heightPixels;
+
+        int winW = displayWindow.getWidth();
+        int winH = displayWindow.getHeight();
+        if (winW <= 0) winW = (int) (screenW * 0.52f);
+        if (winH <= 0) winH = (int) (screenH * 0.52f);
+
+        lp.x = Math.max(0, Math.min(screenW - winW, lp.x));
+        lp.y = Math.max(0, Math.min(screenH - winH, lp.y));
+        try {
+            windowManager.updateViewLayout(displayWindow, lp);
+        } catch (Exception ignored) {}
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -440,12 +543,13 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
 
     @Override
     public void loadNewRotation() {
-        if (scrcpy == null || displayWindow == null) return;
+        if (scrcpy == null) return;
         int[] res = scrcpy.get_remote_device_resolution();
         if (res != null && res.length >= 2 && res[0] > 0 && res[1] > 0) {
             mainHandler.post(() -> {
                 if (displayWindow != null) {
                     displayWindow.setRemote(res[0], res[1]);
+                    clampWindowPositionToScreen();
                 }
             });
         }
@@ -464,10 +568,13 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         if (name != null && !name.isEmpty()) {
             mainHandler.post(() -> {
                 if (displayWindow != null) {
-                    android.widget.TextView tvTitle = displayWindow.findViewById(R.id.tv_title);
+                    TextView tvTitle = displayWindow.findViewById(R.id.tv_title);
                     if (tvTitle != null) {
                         tvTitle.setText(name);
                     }
+                }
+                if (audioOnly) {
+                    updateNotification(name, "Remote Speaker active");
                 }
             });
         }
