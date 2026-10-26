@@ -9,6 +9,7 @@ import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.Surface;
@@ -183,6 +184,16 @@ public class Scrcpy extends Service {
         return deviceName;
     }
 
+    private void notifyDeviceNameResolved(String name) {
+        if (serviceCallbacks != null && name != null && !name.isEmpty()) {
+            mainHandler.post(() -> {
+                if (serviceCallbacks != null) {
+                    serviceCallbacks.onDeviceNameResolved(name);
+                }
+            });
+        }
+    }
+
     public void sendControlMessage(byte[] msg) {
         if (msg != null && isRunning.get()) {
             controlQueue.offer(msg);
@@ -281,7 +292,7 @@ public class Scrcpy extends Service {
                 // 2. Connect audio socket if enabled
                 if (audioEnabled) {
                     audioSocket = new Socket();
-                    audioSocket.setReceiveBufferSize(32 * 1024);
+                    audioSocket.setReceiveBufferSize(16 * 1024);
                     audioSocket.connect(new java.net.InetSocketAddress(serverAdr, serverPort), 3000);
                     audioSocket.setTcpNoDelay(true);
                 }
@@ -340,6 +351,7 @@ public class Scrcpy extends Service {
             dis.readFully(devMeta);
             deviceName = new String(devMeta, StandardCharsets.UTF_8).trim();
             Log.d(TAG, "Device metadata: " + deviceName);
+            notifyDeviceNameResolved(deviceName);
 
             // Read 4-byte video codec ID
             int codecId = dis.readInt();
@@ -402,7 +414,7 @@ public class Scrcpy extends Service {
 
     private void audioThread() {
         try {
-            DataInputStream dis = new DataInputStream(new BufferedInputStream(audioSocket.getInputStream(), 4096));
+            DataInputStream dis = new DataInputStream(audioSocket.getInputStream());
 
             // When video is disabled, scrcpy-server sends the connection dummy byte and 64-byte device metadata
             // on the first channel (audioSocket) instead of videoSocket.
@@ -414,6 +426,7 @@ public class Scrcpy extends Service {
                 dis.readFully(devMeta);
                 deviceName = new String(devMeta, StandardCharsets.UTF_8).trim();
                 Log.d(TAG, "Audio-only device metadata: " + deviceName);
+                notifyDeviceNameResolved(deviceName);
             }
 
             int codecId = dis.readInt();
@@ -433,6 +446,9 @@ public class Scrcpy extends Service {
             }
             audioPlayer.start();
 
+            long firstAudioPtsMs = -1;
+            long firstAudioWallMs = -1;
+
             while (isRunning.get()) {
                 int firstInt = dis.readInt();
                 boolean isConfig = (firstInt & 0x40000000) != 0;
@@ -443,6 +459,43 @@ public class Scrcpy extends Service {
                 if (packetSize > 0 && packetSize < (1 << 18)) {
                     byte[] payload = new byte[packetSize];
                     dis.readFully(payload);
+
+                    if (!isConfig) {
+                        if (videoEnabled) {
+                            // Synchronize with video frame presentation timestamp (PTS)
+                            long lastVideoPts = videoDecoder != null ? videoDecoder.getLastRenderedPtsUs() : -1;
+                            if (lastVideoPts > 0) {
+                                long diffMs = (pts - lastVideoPts) / 1000L;
+                                if (diffMs < -60) {
+                                    // Audio packet is more than 60ms behind current video frame displayed on screen.
+                                    // Drop stale packet to eliminate backlog and maintain tight real-time sync.
+                                    continue;
+                                }
+                            }
+                        } else {
+                            // Audio-Only (Remote Speaker) mode: synchronize with wall clock to drain
+                            // any TCP receive buffer backlog accumulated during the connection handshake.
+                            long nowMs = SystemClock.elapsedRealtime();
+                            long ptsMs = pts / 1000L;
+                            if (firstAudioWallMs == -1) {
+                                firstAudioWallMs = nowMs;
+                                firstAudioPtsMs = ptsMs;
+                            } else {
+                                long wallElapsed = nowMs - firstAudioWallMs;
+                                long ptsElapsed = ptsMs - firstAudioPtsMs;
+                                long backlog = ptsElapsed - wallElapsed;
+                                if (backlog > 50 || backlog < -500) {
+                                    firstAudioWallMs = nowMs;
+                                    firstAudioPtsMs = ptsMs;
+                                    if (backlog > 50) {
+                                        // Skip backlogged packet to lock onto current real-time stream
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     audioPlayer.playSample(payload, pts, isConfig);
                 }
             }
@@ -517,6 +570,7 @@ public class Scrcpy extends Service {
     public interface ServiceCallbacks {
         void loadNewRotation();
         void onDisconnected();
+        default void onDeviceNameResolved(String name) {}
     }
 
     public class MyServiceBinder extends Binder {

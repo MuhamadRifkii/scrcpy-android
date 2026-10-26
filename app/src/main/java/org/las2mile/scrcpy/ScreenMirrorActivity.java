@@ -443,6 +443,18 @@ public class ScreenMirrorActivity extends Activity
         });
     }
 
+    @Override
+    public void onDeviceNameResolved(String name) {
+        if (name != null && !name.isEmpty()) {
+            runOnUiThread(() -> {
+                TextView tvDev = findViewById(R.id.tv_speaker_device);
+                if (tvDev != null) {
+                    tvDev.setText(name);
+                }
+            });
+        }
+    }
+
     // ────────────────────────────────────────────────────────────────────────
     // Touch & Key events
     // ────────────────────────────────────────────────────────────────────────

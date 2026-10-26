@@ -22,6 +22,11 @@ public class VideoDecoder {
     private Worker mWorker;
     private final AtomicBoolean mIsConfigured = new AtomicBoolean(false);
     private String mimeType = "video/avc";
+    private volatile long lastRenderedPtsUs = -1;
+
+    public long getLastRenderedPtsUs() {
+        return lastRenderedPtsUs;
+    }
 
     public void setCodec(int codecId) {
         if (codecId == CODEC_H265) {
@@ -64,6 +69,7 @@ public class VideoDecoder {
             mWorker.setRunning(false);
             mWorker = null;
             mIsConfigured.set(false);
+            lastRenderedPtsUs = -1;
             if (mCodec != null) {
                 try {
                     mCodec.stop();
@@ -180,6 +186,9 @@ public class VideoDecoder {
                     try {
                         int index = mCodec.dequeueOutputBuffer(info, 10000);
                         if (index >= 0) {
+                            if (info.presentationTimeUs > 0) {
+                                lastRenderedPtsUs = info.presentationTimeUs;
+                            }
                             mCodec.releaseOutputBuffer(index, true);
                             if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
                                 break;

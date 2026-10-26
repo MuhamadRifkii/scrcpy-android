@@ -92,7 +92,7 @@ public class AudioPlayer {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             try {
                 int frameSize = 2 * 2;
-                int targetFrames = (SAMPLE_RATE * 50) / 1000; // 50ms buffer target (scrcpy standard)
+                int targetFrames = (SAMPLE_RATE * 80) / 1000; // 80ms active buffer ceiling
                 int minFrames = minBufferSize / frameSize;
                 int optimalFrames = Math.max(targetFrames, minFrames);
                 audioTrack.setBufferSizeInFrames(optimalFrames);
@@ -173,10 +173,9 @@ public class AudioPlayer {
 
         long queuedMs = (queuedFrames * 1000L) / SAMPLE_RATE;
 
-        // Handle massive stalls / initial connection backlog (> 250ms)
-        long elapsedSinceStart = System.currentTimeMillis() - playbackStartTimeMs;
-        if (queuedMs > 250 || (elapsedSinceStart < 1200 && queuedMs > 80 && totalPlayedFrames == 0)) {
-            Log.w(TAG, "Audio buffer backlog excessive (" + queuedMs + " ms), flushing to resync to real-time");
+        // If buffer depth is excessive (> 100ms), flush AudioTrack to immediately snap back to real time
+        if (queuedMs > 100) {
+            Log.w(TAG, "Audio buffer backlog excessive (" + queuedMs + " ms), flushing AudioTrack to resync to real-time");
             try {
                 audioTrack.pause();
                 audioTrack.flush();
@@ -195,12 +194,12 @@ public class AudioPlayer {
         // Smooth clock drift regulation using native pitch-preserved time-stretching (API 23+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             float targetSpeed;
-            if (queuedMs > 100) {
-                targetSpeed = 1.08f; // 8% faster to quickly recover from network jitter
-            } else if (queuedMs > 60) {
-                targetSpeed = 1.03f; // 3% faster to gently eliminate hardware clock drift
-            } else if (queuedMs < 20) {
-                targetSpeed = 0.97f; // 3% slower to prevent buffer underrun crackles
+            if (queuedMs > 75) {
+                targetSpeed = 1.06f; // 6% faster to smoothly recover from brief network jitter
+            } else if (queuedMs > 55) {
+                targetSpeed = 1.02f; // 2% faster to gently eliminate hardware clock drift
+            } else if (queuedMs < 25) {
+                targetSpeed = 0.98f; // 2% slower to prevent buffer underrun crackles
             } else {
                 targetSpeed = 1.0f;  // Normal bit-perfect 1.0x playback
             }

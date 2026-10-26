@@ -98,7 +98,8 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
                                     if (res != null && res.length >= 2 && res[0] > 0 && res[1] > 0) {
                                         displayWindow.setRemote(res[0], res[1]);
                                     }
-                                } else if (audioOnly && scrcpy != null) {
+                                }
+                                if (scrcpy != null) {
                                     String dev = scrcpy.getDeviceName();
                                     if (dev != null && !dev.isEmpty()) {
                                         android.widget.TextView tvTitle = displayWindow.findViewById(R.id.tv_title);
@@ -456,6 +457,20 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
             Toast.makeText(FloatService.this, R.string.msg_device_disconnected, Toast.LENGTH_SHORT).show();
             stopSelf();
         });
+    }
+
+    @Override
+    public void onDeviceNameResolved(String name) {
+        if (name != null && !name.isEmpty()) {
+            mainHandler.post(() -> {
+                if (displayWindow != null) {
+                    android.widget.TextView tvTitle = displayWindow.findViewById(R.id.tv_title);
+                    if (tvTitle != null) {
+                        tvTitle.setText(name);
+                    }
+                }
+            });
+        }
     }
 
     @Override
