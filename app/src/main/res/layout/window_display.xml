@@ -147,15 +147,19 @@
         android:layout_width="match_parent"
         android:layout_height="36dp"
         android:background="@drawable/bg_floating_actionbar"
-        android:gravity="center_vertical"
+        android:gravity="center"
         android:orientation="horizontal">
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
         <ImageView
             android:id="@+id/action_power"
-            android:layout_width="0dp"
+            android:layout_width="34dp"
             android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:padding="7dp"
+            android:padding="6dp"
             android:scaleType="fitCenter"
             android:background="@drawable/bg_btn_ripple"
             android:src="@drawable/ic_nav_power"
@@ -163,10 +167,9 @@
 
         <ImageView
             android:id="@+id/action_back"
-            android:layout_width="0dp"
+            android:layout_width="34dp"
             android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:padding="8dp"
+            android:padding="7dp"
             android:scaleType="fitCenter"
             android:background="@drawable/bg_btn_ripple"
             android:src="@drawable/ic_nav_back"
@@ -174,10 +177,9 @@
 
         <ImageView
             android:id="@+id/action_home"
-            android:layout_width="0dp"
+            android:layout_width="34dp"
             android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:padding="7dp"
+            android:padding="6dp"
             android:scaleType="fitCenter"
             android:background="@drawable/bg_btn_ripple"
             android:src="@drawable/ic_nav_home"
@@ -185,10 +187,9 @@
 
         <ImageView
             android:id="@+id/action_menu"
-            android:layout_width="0dp"
+            android:layout_width="34dp"
             android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:padding="7dp"
+            android:padding="6dp"
             android:scaleType="fitCenter"
             android:background="@drawable/bg_btn_ripple"
             android:src="@drawable/ic_nav_tasks"
@@ -196,10 +197,9 @@
 
         <ImageView
             android:id="@+id/action_vol_down"
-            android:layout_width="0dp"
+            android:layout_width="34dp"
             android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:padding="7dp"
+            android:padding="6dp"
             android:scaleType="fitCenter"
             android:background="@drawable/bg_btn_ripple"
             android:src="@drawable/ic_nav_vol_down"
@@ -207,21 +207,25 @@
 
         <ImageView
             android:id="@+id/action_vol_up"
-            android:layout_width="0dp"
+            android:layout_width="34dp"
             android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:padding="7dp"
+            android:padding="6dp"
             android:scaleType="fitCenter"
             android:background="@drawable/bg_btn_ripple"
             android:src="@drawable/ic_nav_vol_up"
             android:contentDescription="@string/volup_button" />
 
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
         <!-- Drag handle to resize window -->
         <ImageView
             android:id="@+id/iv_resize"
-            android:layout_width="32dp"
+            android:layout_width="30dp"
             android:layout_height="match_parent"
-            android:padding="8dp"
+            android:padding="7dp"
             android:scaleType="fitCenter"
             android:background="@drawable/bg_btn_ripple"
             android:src="@drawable/ic_nav_resize"

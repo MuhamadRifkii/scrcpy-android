@@ -306,13 +306,14 @@ public class DisplayWindow extends FrameLayout {
 
         post(() -> {
             int screenW = getScreenWidth();
+            int minW = dpToPx(234);
             int targetW;
             if (w < h) {
-                // Portrait remote: ~48% of screen width
-                targetW = (int) (screenW * 0.48f);
+                // Portrait remote: ~52% of screen width (at least minW)
+                targetW = Math.max(minW, (int) (screenW * 0.52f));
             } else {
-                // Landscape remote: ~65% of screen width
-                targetW = (int) (screenW * 0.65f);
+                // Landscape remote: ~68% of screen width
+                targetW = Math.max(minW, (int) (screenW * 0.68f));
             }
             applyConstrainedSize(targetW);
         });
@@ -323,7 +324,7 @@ public class DisplayWindow extends FrameLayout {
         int screenH = getScreenHeight();
         float aspect = (remoteW > 0 && remoteH > 0) ? ((float) remoteW / (float) remoteH) : (9f / 16f);
 
-        int minW = dpToPx(160);
+        int minW = dpToPx(234);
         int maxW = (int) (screenW * 0.95f);
         int clampedW = Math.max(minW, Math.min(maxW, targetWidth));
         int clampedH = (int) (clampedW / aspect);
@@ -331,7 +332,7 @@ public class DisplayWindow extends FrameLayout {
         int maxH = (int) (screenH * 0.85f);
         if (clampedH > maxH) {
             clampedH = maxH;
-            clampedW = (int) (clampedH * aspect);
+            clampedW = Math.max(minW, (int) (clampedH * aspect));
         }
 
         ViewGroup.LayoutParams lp = container.getLayoutParams();
