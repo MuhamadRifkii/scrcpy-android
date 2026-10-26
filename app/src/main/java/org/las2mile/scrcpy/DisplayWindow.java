@@ -32,7 +32,15 @@ public class DisplayWindow extends FrameLayout {
     public static final int ACTION_VOLUME_DOWN = 6;
     public static final int ACTION_SCREENSHOT = 7;
     public static final int ACTION_RECORD_TOGGLE = 8;
-    public static final int ACTION_FULLSCREEN = 9;
+
+    public interface OnWindowResizeListener {
+        void onWindowResize(int width, int height);
+    }
+    private OnWindowResizeListener onWindowResizeListener;
+
+    public void setOnWindowResizeListener(OnWindowResizeListener listener) {
+        this.onWindowResizeListener = listener;
+    }
 
     private OnClickListener closeListener;
     private OnMoveCallback moveCallback;
@@ -191,16 +199,6 @@ public class DisplayWindow extends FrameLayout {
             });
         }
 
-        // Fullscreen expand button
-        View fullscreenBtn = findViewById(R.id.iv_fullscreen);
-        if (fullscreenBtn != null) {
-            fullscreenBtn.setOnClickListener(v -> {
-                if (actionCallback != null) {
-                    actionCallback.onAction(ACTION_FULLSCREEN);
-                }
-            });
-        }
-
         // Screenshot button
         View screenshotBtn = findViewById(R.id.iv_screenshot);
         if (screenshotBtn != null) {
@@ -254,7 +252,7 @@ public class DisplayWindow extends FrameLayout {
                     isMinimized = true;
                 } else {
                     container.setVisibility(View.VISIBLE);
-                    if (resizeHandle != null) resizeHandle.setVisibility(View.VISIBLE);
+                    if (resizeHandle != null) resizeHandle.setVisibility(View.GONE);
                     if (isPinned && bottomPillScroll != null) bottomPillScroll.setVisibility(View.VISIBLE);
                     isMinimized = false;
                 }
@@ -389,7 +387,7 @@ public class DisplayWindow extends FrameLayout {
     public void expandControls() {
         if (isMinimized) {
             if (container != null) container.setVisibility(View.VISIBLE);
-            if (resizeHandle != null) resizeHandle.setVisibility(View.VISIBLE);
+            if (resizeHandle != null) resizeHandle.setVisibility(View.GONE);
             isMinimized = false;
         }
         if (topPillScroll != null) topPillScroll.setVisibility(View.VISIBLE);
@@ -447,7 +445,7 @@ public class DisplayWindow extends FrameLayout {
         this.remoteW = w;
         this.remoteH = h;
 
-        post(() -> {
+        Runnable action = () -> {
             int screenW = getScreenWidth();
             int screenH = getScreenHeight();
             int minW = dpToPx(180);
@@ -472,20 +470,28 @@ public class DisplayWindow extends FrameLayout {
                 }
             }
             applyConstrainedSize(targetW);
-        });
+        };
+
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            action.run();
+        } else {
+            post(action);
+        }
     }
 
     /**
      * Local device orientation changed (e.g. user rotated their own phone)
      */
     public void onLocalConfigurationChanged(int w, int h) {
-        this.remoteW = w;
-        this.remoteH = h;
-        post(() -> {
+        if (w > 0 && h > 0) {
+            this.remoteW = w;
+            this.remoteH = h;
+        }
+        Runnable action = () -> {
             int screenW = getScreenWidth();
             int screenH = getScreenHeight();
             int minW = dpToPx(180);
-            float aspect = (float) remoteW / (float) remoteH;
+            float aspect = (remoteW > 0 && remoteH > 0) ? ((float) remoteW / (float) remoteH) : (9f / 16f);
             int targetW = (int) (screenW * userScaleRatio);
             int testH = (int) (targetW / aspect);
             if (testH > (int) (screenH * 0.85f)) {
@@ -493,7 +499,13 @@ public class DisplayWindow extends FrameLayout {
             }
             targetW = Math.max(minW, targetW);
             applyConstrainedSize(targetW);
-        });
+        };
+
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            action.run();
+        } else {
+            post(action);
+        }
     }
 
     public void applyConstrainedSize(int targetWidth) {
@@ -527,6 +539,14 @@ public class DisplayWindow extends FrameLayout {
         }
 
         requestLayout();
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            invalidateOutline();
+        }
+
+        if (onWindowResizeListener != null) {
+            onWindowResizeListener.onWindowResize(clampedW, clampedH);
+        }
     }
 
     private int dpToPx(int dp) {

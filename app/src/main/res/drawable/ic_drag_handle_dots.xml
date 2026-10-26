@@ -4,7 +4,11 @@
     android:height="14dp"
     android:viewportWidth="28"
     android:viewportHeight="14">
+    <!-- Subtle drop shadow for contrast against light backgrounds -->
     <path
-        android:fillColor="#E6FFFFFF"
+        android:fillColor="#80000000"
+        android:pathData="M7,6a2,2 0,1 1,0 4a2,2 0,1 1,0 -4z M14,6a2,2 0,1 1,0 4a2,2 0,1 1,0 -4z M21,6a2,2 0,1 1,0 4a2,2 0,1 1,0 -4z" />
+    <path
+        android:fillColor="#F0FFFFFF"
         android:pathData="M7,5a2,2 0,1 1,0 4a2,2 0,1 1,0 -4z M14,5a2,2 0,1 1,0 4a2,2 0,1 1,0 -4z M21,5a2,2 0,1 1,0 4a2,2 0,1 1,0 -4z" />
 </vector>

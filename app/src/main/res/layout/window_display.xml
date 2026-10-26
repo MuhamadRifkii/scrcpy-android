@@ -55,21 +55,22 @@
         android:paddingStart="4dp"
         android:paddingEnd="4dp">
 
-        <!-- Minimal 3-dots handle (Drag to move, Tap to toggle controls) -->
+        <!-- Minimal 3-dots handle (Drag to move, Tap to toggle controls) - No background per user request -->
         <LinearLayout
             android:id="@+id/handle_dots"
             android:layout_width="wrap_content"
-            android:layout_height="18dp"
-            android:background="@drawable/bg_floating_handle"
+            android:layout_height="wrap_content"
             android:clickable="true"
             android:focusable="true"
             android:gravity="center"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp">
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="6dp">
 
             <ImageView
-                android:layout_width="24dp"
-                android:layout_height="12dp"
+                android:layout_width="28dp"
+                android:layout_height="14dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_drag_handle_dots"
                 android:contentDescription="Handle" />
@@ -110,17 +111,6 @@
                     android:textSize="11sp"
                     android:textStyle="bold"
                     android:visibility="gone" />
-
-                <!-- Fullscreen button -->
-                <ImageView
-                    android:id="@+id/iv_fullscreen"
-                    android:layout_width="32dp"
-                    android:layout_height="match_parent"
-                    android:padding="6dp"
-                    android:scaleType="fitCenter"
-                    android:background="@drawable/bg_btn_ripple"
-                    android:src="@drawable/ic_nav_fullscreen"
-                    android:contentDescription="@string/btn_start_fullscreen" />
 
                 <!-- Rotate button -->
                 <ImageView
@@ -300,7 +290,7 @@
         </HorizontalScrollView>
     </LinearLayout>
 
-    <!-- Corner Drag-to-Resize Handle -->
+    <!-- Corner Drag-to-Resize Handle (Hidden per user request) -->
     <ImageView
         android:id="@+id/iv_resize"
         android:layout_width="26dp"
@@ -310,7 +300,7 @@
         android:layout_marginBottom="6dp"
         android:padding="5dp"
         android:scaleType="fitCenter"
-        android:background="@drawable/bg_floating_resize"
+        android:visibility="gone"
         android:src="@drawable/ic_nav_resize"
         android:contentDescription="Resize" />
 

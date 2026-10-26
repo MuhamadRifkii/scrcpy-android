@@ -321,6 +321,26 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         lp.x = 40;
         lp.y = 120;
 
+        displayWindow.setOnWindowResizeListener((width, height) -> {
+            if (lp != null) {
+                lp.width = width;
+                lp.height = height;
+                clampWindowPositionToScreen();
+            }
+        });
+
+        displayWindow.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View v) {
+                if (lp != null && lp.width > 0 && lp.height > 0) {
+                    clampWindowPositionToScreen();
+                }
+            }
+
+            @Override
+            public void onViewDetachedFromWindow(View v) {}
+        });
+
         windowManager.addView(displayWindow, lp);
 
         displayWindow.setCloseListener(v -> {
@@ -331,19 +351,11 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         displayWindow.setMoveCallback((dx, dy) -> {
             lp.x += (int) dx;
             lp.y += (int) dy;
-            try {
-                if (windowManager != null && displayWindow != null) {
-                    windowManager.updateViewLayout(displayWindow, lp);
-                }
-            } catch (Exception ignored) {
-            }
+            clampWindowPositionToScreen();
         });
 
         displayWindow.setActionCallback(actionType -> {
             switch (actionType) {
-                case DisplayWindow.ACTION_FULLSCREEN:
-                    switchToFullscreen();
-                    break;
                 case DisplayWindow.ACTION_POWER:
                     if (scrcpy != null) scrcpy.sendKeyevent(KeyEvent.KEYCODE_POWER);
                     break;
@@ -400,32 +412,17 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         });
     }
 
-    private void switchToFullscreen() {
-        Intent mirrorIntent = new Intent(FloatService.this, ScreenMirrorActivity.class);
-        mirrorIntent.putExtra("ip", serverAdr);
-        mirrorIntent.putExtra("port", serverPort);
-        mirrorIntent.putExtra("width", screenWidth);
-        mirrorIntent.putExtra("height", screenHeight);
-        mirrorIntent.putExtra("audio", audioEnabled);
-        mirrorIntent.putExtra("audio_only", audioOnly);
-        mirrorIntent.putExtra("capture_buttons", captureButtons);
-        mirrorIntent.putExtra("no_control", noControl);
-        mirrorIntent.putExtra("screen_off", screenOff);
-        mirrorIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(mirrorIntent);
-        stopSelf();
-    }
-
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         Log.d(TAG, "onConfigurationChanged");
-        if (displayWindow != null && scrcpy != null) {
-            int[] res = scrcpy.get_remote_device_resolution();
+        if (displayWindow != null) {
+            int[] res = (scrcpy != null) ? scrcpy.get_remote_device_resolution() : null;
             if (res != null && res.length >= 2 && res[0] > 0 && res[1] > 0) {
                 displayWindow.onLocalConfigurationChanged(res[0], res[1]);
+            } else {
+                displayWindow.onLocalConfigurationChanged(0, 0);
             }
-            clampWindowPositionToScreen();
         }
     }
 
@@ -438,15 +435,17 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         int screenW = dm.widthPixels;
         int screenH = dm.heightPixels;
 
-        int winW = displayWindow.getWidth();
-        int winH = displayWindow.getHeight();
+        int winW = (lp.width > 0) ? lp.width : displayWindow.getWidth();
+        int winH = (lp.height > 0) ? lp.height : displayWindow.getHeight();
         if (winW <= 0) winW = (int) (screenW * 0.52f);
         if (winH <= 0) winH = (int) (screenH * 0.52f);
 
         lp.x = Math.max(0, Math.min(screenW - winW, lp.x));
         lp.y = Math.max(0, Math.min(screenH - winH, lp.y));
         try {
-            windowManager.updateViewLayout(displayWindow, lp);
+            if (displayWindow.isAttachedToWindow()) {
+                windowManager.updateViewLayout(displayWindow, lp);
+            }
         } catch (Exception ignored) {}
     }
 
@@ -546,12 +545,16 @@ public class FloatService extends Service implements Scrcpy.ServiceCallbacks {
         if (scrcpy == null) return;
         int[] res = scrcpy.get_remote_device_resolution();
         if (res != null && res.length >= 2 && res[0] > 0 && res[1] > 0) {
-            mainHandler.post(() -> {
+            Runnable r = () -> {
                 if (displayWindow != null) {
                     displayWindow.setRemote(res[0], res[1]);
-                    clampWindowPositionToScreen();
                 }
-            });
+            };
+            if (Looper.myLooper() == Looper.getMainLooper()) {
+                r.run();
+            } else {
+                mainHandler.post(r);
+            }
         }
     }
 
