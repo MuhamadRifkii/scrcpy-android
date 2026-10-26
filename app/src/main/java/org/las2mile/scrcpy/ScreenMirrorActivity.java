@@ -529,7 +529,6 @@ public class ScreenMirrorActivity extends Activity
         }
 
         // ── Record pull-tab (top-right) ───────────────────────────────────
-        View recordTab = findViewById(R.id.tab_record);
         if (recordTab != null) {
             recordTab.setOnTouchListener((v, event) -> {
                 switch (event.getActionMasked()) {
